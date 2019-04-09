@@ -260,7 +260,7 @@ function show(io::IO, x::PolynomialElem)
    len = length(x)
    S = var(parent(x))
    if len == 0
-      print(io, base_ring(x)(0))
+      print(IOContext(io, :compact => true), base_ring(x)(0))
    else
       for i = 1:len - 1
          c = coeff(x, len - i)
@@ -273,7 +273,7 @@ function show(io::IO, x::PolynomialElem)
                if bracket
                   print(io, "(")
                end
-               show(io, c)
+               print(IOContext(io, :compact => true), c)
                if bracket
                   print(io, ")")
                end
@@ -298,7 +298,7 @@ function show(io::IO, x::PolynomialElem)
          if bracket
             print(io, "(")
          end
-         show(io, c)
+         print(IOContext(io, :compact => true), c)
          if bracket
             print(io, ")")
          end
@@ -310,7 +310,7 @@ function show(io::IO, p::AbstractAlgebra.PolyRing)
    print(io, "Univariate Polynomial Ring in ")
    print(io, string(var(p)))
    print(io, " over ")
-   show(io, base_ring(p))
+   print(IOContext(io, :compact => true), base_ring(p))
 end
 
 needs_parentheses(x::PolynomialElem) = length(x) > 1
@@ -1180,8 +1180,7 @@ end
 
 @doc Markdown.doc"""
     div(f::AbstractAlgebra.PolyElem{T}, g::AbstractAlgebra.PolyElem{T}) where {T <: Union{AbstractAlgebra.ResElem, FieldElement}}
-> Return a tuple $q$ such that $f = qg + r$ where $q$ is the euclidean
-> quotient of $f$ by $g$.
+> Return the euclidean quotient of $f$ by $g$.
 """
 function div(f::AbstractAlgebra.PolyElem{T}, g::AbstractAlgebra.PolyElem{T}) where {T <: Union{AbstractAlgebra.ResElem, FieldElement}}
    q, r = divrem(f, g)
@@ -2115,7 +2114,7 @@ end
 @doc Markdown.doc"""
     gcdx(a::AbstractAlgebra.PolyElem{T}, b::AbstractAlgebra.PolyElem{T}) where {T <: Union{AbstractAlgebra.ResElem, FieldElement}}
 > Return a tuple $(g, s, t)$ such that $g$ is the greatest common divisor of
-> $a$ and $b$ and such that $r = a\times s + b\times t$.
+> $a$ and $b$ and such that $g = a\times s + b\times t$.
 """
 function gcdx(a::AbstractAlgebra.PolyElem{T}, b::AbstractAlgebra.PolyElem{T}) where {T <: Union{AbstractAlgebra.ResElem, FieldElement}}
    check_parent(a, b)
