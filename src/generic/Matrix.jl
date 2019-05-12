@@ -9,15 +9,17 @@ export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
        identity_matrix, charpoly_hessenberg!, invert_cols, invert_cols!,
        invert_rows, invert_rows!, matrix, minpoly, typed_hvcat, typed_hcat,
        powers, randmat_triu, randmat_with_rank, similarity!, solve,
-       solve_rational, hnf, hnf_kb, hnf_kb_with_trafo, hnf_with_trafo,
-       issquare, snf, snf_with_trafo, weak_popov, weak_popov_with_trafo,
-       extended_weak_popov, extended_weak_popov_with_trafo, rank,
-       rank_profile_popov, hnf_via_popov, hnf_via_popov_with_trafo, popov,
-       popov_with_trafo, det_popov, _check_dim, nrows, ncols, gram, rref,
+       solve_rational, hnf, hnf_kb, hnf_kb_with_transform, hnf_with_transform,
+       issquare, snf, snf_with_transform, weak_popov,
+       weak_popov_with_transform, can_solve_left_row_hnf,
+       extended_weak_popov, extended_weak_popov_with_transform, rank,
+       rank_profile_popov, hnf_via_popov, hnf_via_popov_with_transform, popov,
+       popov_with_transform, det_popov, _check_dim, nrows, ncols, gram, rref,
        rref!, swap_cols, swap_cols!, swap_rows, swap_rows!, hnf_kb,
-       hnf_kb_with_trafo, hnf_cohen, hnf_cohen_with_trafo, snf_kb,
-       snf_kb_with_trafo, find_pivot_popov, inv!, zero_matrix,
-       kronecker_product, minors, tr, lu, lu!, pseudo_inv
+       hnf_kb_with_transform, hnf_cohen, hnf_cohen_with_transform, snf_kb,
+       snf_kb_with_transform, find_pivot_popov, inv!, zero_matrix,
+       kronecker_product, minors, tr, lu, lu!, pseudo_inv, dense_matrix_type,
+       kernel, iszero_row, iszero_column, left_kernel, right_kernel
 
 ###############################################################################
 #
@@ -104,6 +106,14 @@ base_ring(a::MatrixElem{T}) where {T <: RingElement} = a.base_ring::parent_type(
 """
 parent(a::AbstractAlgebra.MatElem{T}, cached::Bool = true) where T <: RingElement =
     MatSpace{T}(a.base_ring, size(a.entries)..., cached)
+
+dense_matrix_type(::Type{T}) where T <: RingElement = Mat{T}
+
+@doc Markdown.doc"""
+    dense_matrix_type(R::Ring)
+> Return the type of matrices over the given ring.
+"""
+dense_matrix_type(R::Ring) = dense_matrix_type(elem_type(R))
 
 function check_parent(a::AbstractAlgebra.MatElem, b::AbstractAlgebra.MatElem, throw::Bool = true)
   fl = (base_ring(a) != base_ring(b) || nrows(a) != nrows(b) || ncols(a) != ncols(b))
@@ -231,6 +241,32 @@ function isone(a::MatrixElem)
             end
          end
       end
+  end
+  return true
+end
+
+@doc Markdown.doc"""
+    iszero_row(M::MatrixElem{T}, i::Int) where T <: RingElement
+> Returns `true` if the $i$-th row of the matrix $M$ is zero.
+"""
+function iszero_row(M::MatrixElem{T}, i::Int) where T <: RingElement
+  for j in 1:ncols(M)
+    if !iszero(M[i, j])
+      return false
+    end
+  end
+  return true
+end
+
+@doc Markdown.doc"""
+    iszero_column(M::MatrixElem{T}, i::Int) where T <: RingElement
+> Returns `true` if the $i$-th column of the matrix $M$ is zero.
+"""
+function iszero_column(M::MatrixElem{T}, i::Int) where T <: RingElement
+  for j in 1:nrows(M)
+    if !iszero(M[j, i])
+      return false
+    end
   end
   return true
 end
@@ -1608,7 +1644,7 @@ function det_interpolation(M::MatrixElem{T}) where {T <: PolyElem}
    x = Array{elem_type(base_ring(R))}(undef, bound)
    d = Array{elem_type(base_ring(R))}(undef, bound)
    X = zero_matrix(base_ring(R), n, n)
-   b2 = div(bound, 2)
+   b2 = AbstractAlgebra.div(bound, 2)
    pt1 = base_ring(R)(1 - b2)
    for i = 1:bound
       x[i] = base_ring(R)(i - b2)
@@ -1924,7 +1960,7 @@ function solve_interpolation(M::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.M
    X = similar(tmat, m, m)
    Y = similar(tmat, m, h)
    x = similar(b)
-   b2 = div(bound, 2)
+   b2 = AbstractAlgebra.div(bound, 2)
    pt1 = base_ring(R)(1 - b2)
    l = 1
    i = 1
@@ -2067,6 +2103,64 @@ end
 
 ###############################################################################
 #
+#   Can solve with hnf
+#
+###############################################################################
+
+@doc Markdown.doc"""
+    can_solve_left_reduced_triu(r::AbstractAlgebra.MatElem{T},
+                          M::AbstractAlgebra.MatElem{T}) where T <: RingElement
+> Returns a tuple `flag, x` where `flag` is set to true if $xM = r$ has a
+> solution, where $M$ is an $m\times n$ matrix in (upper triangular) Hermite
+> normal form or reduced row echelon form and $r$ and $x$ are row vectors with
+> $m$ columns. If there is no solution, flag is set to `false` and $x$ is set
+> to the zero row.
+"""
+function can_solve_left_reduced_triu(r::AbstractAlgebra.MatElem{T},
+                          M::AbstractAlgebra.MatElem{T}) where T <: RingElement
+   ncols(r) != ncols(M) && error("Incompatible matrices")
+   r = deepcopy(r) # do not destroy input
+   m = ncols(r)
+   n = nrows(M)
+   if n == 0
+      return true, r
+   end
+   R = base_ring(r)
+   x = zero_matrix(R, 1, n)
+   j = 1 # row in M
+   k = 1 # column in M
+   t = R()
+   for i = 1:m # column in r
+      if iszero(r[1, i])
+         continue
+      end
+      while k <= i && j <= n
+         if iszero(M[j, k])
+            k += 1
+         elseif k < i
+            j += 1
+         else
+            break
+         end
+      end
+      if k != i
+         return false, x
+      end
+      x[1, j], r[1, i] = AbstractAlgebra.divrem(r[1, i], M[j, k])
+      if !iszero(r[1, i])
+         return false, x
+      end
+      q = -x[1, j]
+      for l = i + 1:m
+         t = mul!(t, q, M[j, l])
+         r[1, l] = addeq!(r[1, l], t)
+      end
+   end
+   return true, x
+end
+
+###############################################################################
+#
 #   Inverse
 #
 ###############################################################################
@@ -2171,10 +2265,7 @@ end
 > Returns a tuple $(\nu, N)$ consisting of the nullity $\nu$ of $M$ and
 > a basis $N$ (consisting of column vectors) for the right nullspace of $M$,
 > i.e. such that $MN$ is the zero matrix. If $M$ is an $m\times n$ matrix
-> $N$ will be an $n\times \nu$ matrix. Note that the nullspace is taken to be
-> the vector space kernel over the fraction field of the base ring if the
-> latter is not a field. In Nemo we use the name ``kernel'' for a function to
-> compute an integral kernel.
+> $N$ will be an $n\times \nu$ matrix.
 """
 function nullspace(M::AbstractAlgebra.MatElem{T}) where {T <: FieldElement}
    m = nrows(M)
@@ -2213,6 +2304,73 @@ function nullspace(M::AbstractAlgebra.MatElem{T}) where {T <: FieldElement}
       end
    end
    return nullity, X
+end
+
+###############################################################################
+#
+#   Kernel
+#
+###############################################################################
+
+@doc Markdown.doc"""
+    left_kernel(a::AbstractAlgebra.MatElem{T}) where T <: RingElement
+> Returns a tuple `n, M` where $M$ is a matrix whose rows generate the kernel
+> of $M$ and $n$ is the rank of the kernel. The transpose of the output of this
+> function is guaranteed to be in flipped upper triangular format (i.e. upper
+> triangular format if columns and rows are reversed).
+"""
+function left_kernel(x::AbstractAlgebra.MatElem{T}) where T <: RingElement
+   !isdomain_type(elem_type(base_ring(x))) && error("Not implemented")
+   R = base_ring(x)
+   H, U = hnf_with_transform(x)
+   i = nrows(H)
+   zero_rows = false
+   while i > 0 && iszero_row(H, i)
+      zero_rows = true
+      i -= 1
+   end
+   if zero_rows
+      return nrows(U) - i, U[i + 1:nrows(U), 1:ncols(U)]
+   else
+      return 0, zero_matrix(R, 0, ncols(U))
+   end
+end
+
+function left_kernel(M::AbstractAlgebra.MatElem{T}) where T <: FieldElement 
+  n, N = nullspace(transpose(M))
+  return n, transpose(N)
+end
+
+@doc Markdown.doc"""
+    right_kernel(a::AbstractAlgebra.MatElem{T}) where T <: RingElement
+> Returns a tuple `n, M` where $M$ is a matrix whose columns generate the
+> kernel of $M$ and $n$ is the rank of the kernel.
+"""
+function right_kernel(x::AbstractAlgebra.MatElem{T}) where T <: RingElement
+   n, M = left_kernel(transpose(x))
+   return n, transpose(M)
+end
+
+function right_kernel(M::AbstractAlgebra.MatElem{T}) where T <: FieldElement
+   return nullspace(M)
+end
+
+@doc Markdown.doc"""
+    kernel(a::MatElem{T}; side::Symbol = :right) where T <: RingElement
+> Returns a tuple $(n, M)$, where n is the rank of the kernel and $M$ is a
+> basis for it. If side is $:right$ or not specified, the right kernel is
+> computed, i.e. the matrix of columns whose span gives the right kernel
+> space. If side is $:left$, the left kernel is computed, i.e. the matrix
+> of rows whose span is the left kernel space.
+"""
+function kernel(A::AbstractAlgebra.MatElem{T}; side::Symbol = :right) where T <: RingElement
+   if side == :right
+      return right_kernel(A)
+   elseif side == :left
+      return left_kernel(A)
+   else
+      error("Unsupported argument: :$side for side: Must be :left or :right")
+   end
 end
 
 ###############################################################################
@@ -2833,11 +2991,11 @@ end
 ###############################################################################
 
 function hnf_cohen(A::MatrixElem{T}) where {T <: RingElement}
-   H, U = hnf_cohen_with_trafo(A)
+   H, U = hnf_cohen_with_transform(A)
    return H
 end
 
-function hnf_cohen_with_trafo(A::MatrixElem{T}) where {T <: RingElement}
+function hnf_cohen_with_transform(A::MatrixElem{T}) where {T <: RingElement}
    H = deepcopy(A)
    m = nrows(H)
    U = eye(A, m)
@@ -2897,7 +3055,7 @@ function hnf_cohen!(H::MatrixElem{T}, U::MatrixElem{T}) where {T <: RingElement}
          end
       end
       for j = 1:k-1
-         q = -div(H[j,i], H[k, i])
+         q = -AbstractAlgebra.div(H[j,i], H[k, i])
          for c = i:n
             t = mul!(t, q, H[k, c])
             H[j, c] = addeq!(H[j, c], t)
@@ -2930,12 +3088,12 @@ function hnf_minors(A::MatrixElem{T}) where {T <: RingElement}
 end
 
 @doc Markdown.doc"""
-    hnf_minors_with_trafo(A::Generic.MatrixElem{T}) where {T <: RingElement}
+    hnf_minors_with_transform(A::Generic.MatrixElem{T}) where {T <: RingElement}
 > Compute the upper right row Hermite normal form $H$ of $A$ and an invertible
 > matrix $U$ with $UA = H$ using the algorithm of Kannan-Bachem. The input must
 > have full column rank.
 """
-function hnf_minors_with_trafo(A::MatrixElem{T}) where {T <: RingElement}
+function hnf_minors_with_transform(A::MatrixElem{T}) where {T <: RingElement}
    H = deepcopy(A)
    U = similar(A, nrows(A), nrows(A))
    _hnf_minors!(H, U, Val{true})
@@ -3073,7 +3231,7 @@ function _hnf_minors!(H::MatrixElem{T}, U::MatrixElem{T}, with_transform::Type{V
 
       for i in (k - 1):-1:1
          for j in (i + 1):k
-            q = div(H[i, j], H[j, j])
+            q = AbstractAlgebra.div(H[i, j], H[j, j])
             if iszero(q)
               continue
             end
@@ -3158,7 +3316,7 @@ function _hnf_minors!(H::MatrixElem{T}, U::MatrixElem{T}, with_transform::Type{V
       end
       for i in n:-1:1
          for j in (i + 1):n
-            q = div(H[i, j], H[j, j])
+            q = AbstractAlgebra.div(H[i, j], H[j, j])
             if iszero(q)
               continue
             end
@@ -3192,12 +3350,12 @@ function hnf_kb(A::MatrixElem{T}) where {T <: RingElement}
 end
 
 @doc Markdown.doc"""
-    hnf_kb_with_trafo(A::Generic.MatrixElem{T}) where {T <: RingElement}
+    hnf_kb_with_transform(A::Generic.MatrixElem{T}) where {T <: RingElement}
 > Compute the upper right row Hermite normal form $H$ of $A$ and an invertible
 > matrix $U$ with $UA = H$ using a modification of the algorithm of
 > Kannan-Bachem.
 """
-function hnf_kb_with_trafo(A::MatrixElem{T}) where {T <: RingElement}
+function hnf_kb_with_transform(A::MatrixElem{T}) where {T <: RingElement}
    return _hnf_kb(A, Val{true})
 end
 
@@ -3234,7 +3392,7 @@ function kb_reduce_row!(H::MatrixElem{T}, U::MatrixElem{T}, pivot::Array{Int, 1}
       if p == 0
          continue
       end
-      q = -div(H[r,i], H[p,i])
+      q = -AbstractAlgebra.div(H[r,i], H[p,i])
       for j = i:ncols(H)
          t = mul!(t, q, H[p,j])
          H[r, j] = addeq!(H[r,j], t)
@@ -3257,7 +3415,7 @@ function kb_reduce_column!(H::MatrixElem{T}, U::MatrixElem{T}, pivot::Array{Int,
       if p == 0
          continue
       end
-      q = -div(H[p,c],H[r,c])
+      q = -AbstractAlgebra.div(H[p,c],H[r,c])
       for j = c:ncols(H)
          t = mul!(t, q, H[r,j])
          H[p, j] = addeq!(H[p,j], t)
@@ -3409,12 +3567,12 @@ function hnf(A::MatrixElem{T}) where {T <: RingElement}
 end
 
 @doc Markdown.doc"""
-    hnf_with_trafo(A)
+    hnf_with_transform(A)
 > Return the tuple $H, U$ consisting of the upper right row Hermite normal
 > form $H$ of $A$ together with invertible matrix $U$ such that $UA = H$.
 """
-function hnf_with_trafo(A)
-  return hnf_kb_with_trafo(A)
+function hnf_with_transform(A)
+  return hnf_kb_with_transform(A)
 end
 
 ###############################################################################
@@ -3427,7 +3585,7 @@ function snf_kb(A::MatrixElem{T}) where {T <: RingElement}
    return _snf_kb(A, Val{false})
 end
 
-function snf_kb_with_trafo(A::MatrixElem{T}) where {T <: RingElement}
+function snf_kb_with_transform(A::MatrixElem{T}) where {T <: RingElement}
    return _snf_kb(A, Val{true})
 end
 
@@ -3550,8 +3708,8 @@ function snf(a::MatrixElem{T}) where {T <: RingElement}
   return snf_kb(a)
 end
 
-function snf_with_trafo(a::MatrixElem{T}) where {T <: RingElement}
-  return snf_kb_with_trafo(a)
+function snf_with_transform(a::MatrixElem{T}) where {T <: RingElement}
+  return snf_kb_with_transform(a)
 end
 
 ################################################################################
@@ -3569,11 +3727,11 @@ function weak_popov(A::Mat{T}) where {T <: PolyElem}
 end
 
 @doc Markdown.doc"""
-    weak_popov_with_trafo(A::Mat{T}) where {T <: PolyElem}
+    weak_popov_with_transform(A::Mat{T}) where {T <: PolyElem}
 > Compute a tuple $(P, U)$ where $P$ is the weak Popov form of $A$ and $U$
 > is a transformation matrix so that $P = UA$.
 """
-function weak_popov_with_trafo(A::Mat{T}) where {T <: PolyElem}
+function weak_popov_with_transform(A::Mat{T}) where {T <: PolyElem}
    return _weak_popov(A, Val{true})
 end
 
@@ -3603,13 +3761,13 @@ function extended_weak_popov(A::Mat{T}, V::Mat{T}) where {T <: PolyElem}
 end
 
 @doc Markdown.doc"""
-    extended_weak_popov_with_trafo(A::Mat{T}, V::Mat{T}) where {T <: PolyElem}
+    extended_weak_popov_with_transform(A::Mat{T}, V::Mat{T}) where {T <: PolyElem}
 > Compute the weak Popov form $P$ of $A$ by applying simple row transformations
 > on $A$, a vector $W$ by applying the same transformations on the vector $V$,
 > and a transformation matrix $U$ so that $P = UA$.
 > Return the tuple $(P, W, U)$.
 """
-function extended_weak_popov_with_trafo(A::Mat{T}, V::Mat{T}) where {T <: PolyElem}
+function extended_weak_popov_with_transform(A::Mat{T}, V::Mat{T}) where {T <: PolyElem}
    return _extended_weak_popov(A, V, Val{true})
 end
 
@@ -3690,7 +3848,7 @@ function weak_popov_with_pivots!(P::Mat{T}, W::Mat{T}, U::Mat{T}, pivots::Array{
             if j == pivotInd
                continue
             end
-            q = -div(P[pivots[i][j], i], P[pivot, i])
+            q = -AbstractAlgebra.div(P[pivots[i][j], i], P[pivot, i])
             for c = 1:n
                t = mul!(t, q, P[pivot, c])
                P[pivots[i][j], c] = addeq!(P[pivots[i][j], c], t)
@@ -3794,7 +3952,7 @@ function det_popov(A::Mat{T}) where {T <: PolyElem}
             r1, r2 = r2, r1
             pivots[c] = r2
          end
-         q = -div(B[r1, c], B[r2, c])
+         q = -AbstractAlgebra.div(B[r1, c], B[r2, c])
          for j = 1:i + 1
             t = mul!(t, q, B[r2, j])
             B[r1, j] = addeq!(B[r1, j], t)
@@ -3834,11 +3992,11 @@ function popov(A::Mat{T}) where {T <: PolyElem}
 end
 
 @doc Markdown.doc"""
-    popov_with_trafo(A::Mat{T}) where {T <: PolyElem}
+    popov_with_transform(A::Mat{T}) where {T <: PolyElem}
 > Compute a tuple $(P, U)$ where $P$ is the Popov form of $A$ and $U$
 > is a transformation matrix so that $P = UA$.
 """
-function popov_with_trafo(A::Mat{T}) where {T <: PolyElem}
+function popov_with_transform(A::Mat{T}) where {T <: PolyElem}
    return _popov(A, Val{true})
 end
 
@@ -3909,7 +4067,7 @@ function popov!(P::Mat{T}, U::Mat{T}, with_trafo::Bool = false) where {T <: Poly
          if degree(P[r,i]) < d
             continue
          end
-         q = -div(P[r,i],P[pivot,i])
+         q = -AbstractAlgebra.div(P[r,i],P[pivot,i])
          for c = 1:n
             t = mul!(t, q, P[pivot,c])
             P[r, c] = addeq!(P[r,c], t)
@@ -3946,7 +4104,7 @@ function hnf_via_popov(A::Mat{T}) where {T <: PolyElem}
    return _hnf_via_popov(A, Val{false})
 end
 
-function hnf_via_popov_with_trafo(A::Mat{T}) where {T <: PolyElem}
+function hnf_via_popov_with_transform(A::Mat{T}) where {T <: PolyElem}
    return _hnf_via_popov(A, Val{true})
 end
 
@@ -3972,7 +4130,7 @@ function hnf_via_popov_reduce_row!(H::Mat{T}, U::Mat{T}, pivots_hermite::Array{I
          continue
       end
       pivot = pivots_hermite[c]
-      q = -div(H[r, c], H[pivot, c])
+      q = -AbstractAlgebra.div(H[r, c], H[pivot, c])
       for j = c:n
          t = mul!(t, q, H[pivot, j])
          H[r, j] = addeq!(H[r, j], t)
@@ -3999,7 +4157,7 @@ function hnf_via_popov_reduce_column!(H::Mat{T}, U::Mat{T}, pivots_hermite::Arra
       if degree(H[i, c]) < degree(H[r, c])
          continue
       end
-      q = -div(H[i, c], H[r, c])
+      q = -AbstractAlgebra.div(H[i, c], H[r, c])
       for j = 1:n
          t = mul!(t, q, H[r, j])
          H[i, j] = addeq!(H[i, j], t)
@@ -4044,7 +4202,7 @@ function hnf_via_popov!(H::Mat{T}, U::Mat{T}, with_trafo::Bool = false) where {T
             r1, r2 = r2, r1
             pivots_popov[c] = r2
          end
-         q = -div(H[r1, c], H[r2, c])
+         q = -AbstractAlgebra.div(H[r1, c], H[r2, c])
          for j = 1:n
             t = mul!(t, q, H[r2, j])
             H[r1, j] = addeq!(H[r1, j], t)
@@ -4178,7 +4336,7 @@ end
 > where $r$ is the number of rows of $a$.
 """
 function invert_rows!(a::MatrixElem)
-   k = div(nrows(a), 2)
+   k = AbstractAlgebra.div(nrows(a), 2)
    for i in 1:k
       swap_rows!(a, i, nrows(a) - i + 1)
    end
@@ -4202,7 +4360,7 @@ end
 > where $c$ is the number of columns of $a$.
 """
 function invert_cols!(a::MatrixElem)
-   k = div(ncols(a), 2)
+   k = AbstractAlgebra.div(ncols(a), 2)
    for i in 1:k
       swap_cols!(a, i, ncols(a) - i + 1)
    end

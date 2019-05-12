@@ -53,17 +53,19 @@ end
 function test_quotient_module_unary_ops()
    print("Generic.QuotientModule.unary_ops...")
 
-   R = ZZ
-   M = FreeModule(R, 2)
+   for R in [ZZ, QQ]
+      for iter = 1:40
+         M = rand_module(R, -10:10)
+         ngens = rand(1:5)
+         S = [rand(M, -10:10) for i in 1:ngens]
+         N, f = Submodule(M, S)
+         Q, g = QuotientModule(M, N)
 
-   m = M([R(1), R(2)])
-
-   N, f = Submodule(M, [m])
-   Q, g = QuotientModule(M, N)
-
-   m = Q([ZZ(2)])
+         m = rand(Q, -10:10)
    
-   @test -m == Q([-ZZ(2)])
+         @test -(-m) == m
+      end
+   end
 
    println("PASS")
 end
@@ -71,17 +73,21 @@ end
 function test_quotient_module_binary_ops()
    print("Generic.QuotientModule.binary_ops...")
 
-   R = ZZ
-   M = FreeModule(R, 2)
+   for R in [ZZ, QQ]
+      for iter = 1:40
+         M = rand_module(R, -10:10)
+         ngens = rand(1:5)
+         S = [rand(M, -10:10) for i in 1:ngens]
+         N, f = Submodule(M, S)
+         Q, g = QuotientModule(M, N)
 
-   m = M([R(1), R(2)])
+         m = rand(Q, -10:10)
+         n = rand(Q, -10:10)
 
-   N, f = Submodule(M, [m])
-   Q, g = QuotientModule(M, N)
-
-   m = Q([ZZ(2)])
-
-   @test m + m - m == m
+         @test m + n - n == m
+         @test m - n == m + (-n)
+      end
+   end
 
    println("PASS")
 end
@@ -89,18 +95,24 @@ end
 function test_quotient_module_adhoc_binary()
    print("Generic.QuotientModule.adhoc_binary...")
 
-   R = ZZ
-   M = FreeModule(R, 2)
+   for R in [ZZ, QQ]
+      for iter = 1:40
+         M = rand_module(R, -10:10)
+         ngens = rand(1:5)
+         S = [rand(M, -10:10) for i in 1:ngens]
+         N, f = Submodule(M, S)
+         Q, g = QuotientModule(M, N)
 
-   m = M([R(1), R(2)])
+         m = rand(Q, -10:10)
+         n = rand(Q, -10:10)
+         c = rand(-10:10)
 
-   N, f = Submodule(M, [m])
-   Q, g = QuotientModule(M, N)
-
-   m = Q([ZZ(2)])
-
-   @test 2*m == Q([ZZ(4)])
-   @test m*2 == 2*m
+         @test 2*m == m + m
+         @test m*c == c*m
+         @test c*(m + n) == c*m + c*n
+         @test c*(m - n) == c*m - c*n
+      end
+   end
 
    println("PASS")
 end

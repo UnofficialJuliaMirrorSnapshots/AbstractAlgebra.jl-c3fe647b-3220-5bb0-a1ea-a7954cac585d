@@ -192,6 +192,8 @@ function test_gen_mat_manipulation()
    A = S([t + 1 t R(1); t^2 t t; R(-2) t + 2 t^2 + t + 1])
    B = S([R(2) R(3) R(1); t t + 1 t + 2; R(-1) t^2 t^3])
 
+   @test dense_matrix_type(R) == elem_type(S)
+
    @test iszero(zero(S))
    @test isone(one(S))
 
@@ -208,6 +210,13 @@ function test_gen_mat_manipulation()
    @test ncols(B) == 3
 
    @test deepcopy(A) == A
+
+   C = S([t + 1 R(0) R(1); t^2 R(0) t; R(0) R(0) R(0)])
+
+   @test iszero_row(C, 3)
+   @test !iszero_row(C, 1)
+   @test iszero_column(C, 2)
+   @test !iszero_column(C, 1)
 
    println("PASS")
 end
@@ -833,6 +842,28 @@ function test_gen_mat_solve_triu()
    println("PASS")
 end
 
+function test_gen_mat_can_solve_left_reduced_triu()
+   print("Generic.Mat.solve_left_reduced_triu...")
+
+   for iter = 1:40
+      n = rand(1:6)
+      m = rand(1:n)
+      S = MatrixSpace(ZZ, m, n)
+      U = MatrixSpace(ZZ, 1, n)
+
+      M = randmat_with_rank(S, rand(1:m), -20:20)
+      r = rand(U, -20:20)
+
+      M = hnf(M)
+
+      flag, x = can_solve_left_reduced_triu(r, M)
+
+      @test flag == false || x*M == r
+   end
+
+   println("PASS")
+end
+
 function test_gen_mat_rref()
    print("Generic.Mat.rref...")
 
@@ -973,6 +1004,69 @@ function test_gen_mat_nullspace()
       @test n == 5 - i
       @test rank(N) == n
       @test iszero(M*N)
+   end
+
+   println("PASS")
+end
+
+function test_gen_mat_kernel()
+   print("Generic.Mat.kernel...")
+
+   R = MatrixSpace(ZZ, 5, 5)
+
+   for i = 0:5
+      M = randmat_with_rank(R, i, -20:20)
+
+      n, N = kernel(M)
+
+      @test n == 5 - i
+      @test rank(N) == n
+      @test iszero(M*N)
+
+      n, N = left_kernel(M)
+
+      @test n == 5 - i
+      @test rank(N) == n
+      @test iszero(N*M)
+   end
+
+   R, x = PolynomialRing(QQ, "x")
+   K, a = NumberField(x^3 + 3x + 1, "a")
+   S = MatrixSpace(K, 5, 5)
+
+   for i = 0:5
+      M = randmat_with_rank(S, i, 0:2, -100:100)
+
+      n, N = kernel(M)
+
+      @test n == 5 - i
+      @test rank(N) == n
+      @test iszero(M*N)
+
+      n, N = left_kernel(M)
+
+      @test n == 5 - i
+      @test rank(N) == n
+      @test iszero(N*M)
+   end
+
+   R, x = PolynomialRing(QQ, "x")
+   T = MatrixSpace(R, 5, 5)
+
+   for i = 0:5
+      M = randmat_with_rank(T, i, 0:2, -20:20)
+
+      n, N = kernel(M)
+
+      @test n == 5 - i
+      @test rank(N) == n
+      @test iszero(M*N)
+ 
+      n, N = left_kernel(M)
+
+      @test n == 5 - i
+      @test rank(N) == n
+      @test iszero(N*M)
    end
 
    println("PASS")
@@ -1358,7 +1452,7 @@ function test_gen_mat_hnf_minors()
    H = hnf_minors(A)
    @test istriu(H)
 
-   H, U = hnf_minors_with_trafo(A)
+   H, U = hnf_minors_with_transform(A)
    @test istriu(H)
    @test isunit(det(U))
    @test U*A == H
@@ -1377,7 +1471,7 @@ function test_gen_mat_hnf_minors()
    H = hnf_minors(B)
    @test istriu(H)
 
-   H, U = hnf_minors_with_trafo(B)
+   H, U = hnf_minors_with_transform(B)
    @test istriu(H)
    @test isunit(det(U))
    @test U*B == H
@@ -1397,7 +1491,7 @@ function test_gen_mat_hnf_kb()
    H = AbstractAlgebra.hnf_kb(A)
    @test istriu(H)
 
-   H, U = AbstractAlgebra.hnf_kb_with_trafo(A)
+   H, U = AbstractAlgebra.hnf_kb_with_transform(A)
    @test istriu(H)
    @test isunit(det(U))
    @test U*A == H
@@ -1416,7 +1510,7 @@ function test_gen_mat_hnf_kb()
    H = AbstractAlgebra.hnf_kb(B)
    @test istriu(H)
 
-   H, U = AbstractAlgebra.hnf_kb_with_trafo(B)
+   H, U = AbstractAlgebra.hnf_kb_with_transform(B)
    @test istriu(H)
    @test isunit(det(U))
    @test U*B == H
@@ -1436,7 +1530,7 @@ function test_gen_mat_hnf_cohen()
    H = AbstractAlgebra.hnf_cohen(A)
    @test istriu(H)
 
-   H, U = AbstractAlgebra.hnf_cohen_with_trafo(A)
+   H, U = AbstractAlgebra.hnf_cohen_with_transform(A)
    @test istriu(H)
    @test isunit(det(U))
    @test U*A == H
@@ -1455,7 +1549,7 @@ function test_gen_mat_hnf_cohen()
    H = AbstractAlgebra.hnf_cohen(B)
    @test istriu(H)
 
-   H, U = AbstractAlgebra.hnf_cohen_with_trafo(B)
+   H, U = AbstractAlgebra.hnf_cohen_with_transform(B)
    @test istriu(H)
    @test isunit(det(U))
    @test U*B == H
@@ -1475,7 +1569,7 @@ function test_gen_mat_hnf()
    H = hnf(A)
    @test istriu(H)
 
-   H, U = hnf_with_trafo(A)
+   H, U = hnf_with_transform(A)
    @test istriu(H)
    @test isunit(det(U))
    @test U*A == H
@@ -1494,7 +1588,7 @@ function test_gen_mat_hnf()
    H = hnf(B)
    @test istriu(H)
 
-   H, U = hnf_with_trafo(B)
+   H, U = hnf_with_transform(B)
    @test istriu(H)
    @test isunit(det(U))
    @test U*B == H
@@ -1514,7 +1608,7 @@ function test_gen_mat_snf_kb()
    T = AbstractAlgebra.snf_kb(A)
    @test is_snf(T)
 
-   T, U, K = AbstractAlgebra.snf_kb_with_trafo(A)
+   T, U, K = AbstractAlgebra.snf_kb_with_transform(A)
    @test is_snf(T)
    @test isunit(det(U))
    @test isunit(det(K))
@@ -1534,7 +1628,7 @@ function test_gen_mat_snf_kb()
    T = AbstractAlgebra.snf_kb(B)
    @test is_snf(T)
 
-   T, U, K = AbstractAlgebra.snf_kb_with_trafo(B)
+   T, U, K = AbstractAlgebra.snf_kb_with_transform(B)
    @test is_snf(T)
    @test isunit(det(U))
    @test isunit(det(K))
@@ -1555,7 +1649,7 @@ function test_gen_mat_snf()
    T = snf(A)
    @test is_snf(T)
 
-   T, U, K = snf_with_trafo(A)
+   T, U, K = snf_with_transform(A)
    @test is_snf(T)
    @test isunit(det(U))
    @test isunit(det(K))
@@ -1575,7 +1669,7 @@ function test_gen_mat_snf()
    T = snf(B)
    @test is_snf(T)
 
-   T, U, K = snf_with_trafo(B)
+   T, U, K = snf_with_transform(B)
    @test is_snf(T)
    @test isunit(det(U))
    @test isunit(det(K))
@@ -1595,7 +1689,7 @@ function test_gen_mat_weak_popov()
    P = weak_popov(A)
    @test is_weak_popov(P, r)
 
-   P, U = weak_popov_with_trafo(A)
+   P, U = weak_popov_with_transform(A)
    @test is_weak_popov(P, r)
    @test U*A == P
    @test isunit(det(U))
@@ -1610,7 +1704,7 @@ function test_gen_mat_weak_popov()
    P = weak_popov(B)
    @test is_weak_popov(P, s)
 
-   P, U = weak_popov_with_trafo(B)
+   P, U = weak_popov_with_transform(B)
    @test is_weak_popov(P, s)
    @test U*B == P
    @test isunit(det(U))
@@ -1624,7 +1718,7 @@ function test_gen_mat_weak_popov()
       P = weak_popov(A)
       @test is_weak_popov(P, r)
 
-      P, U = weak_popov_with_trafo(A)
+      P, U = weak_popov_with_transform(A)
       @test is_weak_popov(P, r)
       @test U*A == P
       @test isunit(det(U))
@@ -1640,7 +1734,7 @@ function test_gen_mat_weak_popov()
       P = weak_popov(A)
       @test is_weak_popov(P, r)
 
-      P, U = weak_popov_with_trafo(A)
+      P, U = weak_popov_with_transform(A)
       @test is_weak_popov(P, r)
       @test U*A == P
       @test isunit(det(U))
@@ -1656,7 +1750,7 @@ function test_gen_mat_weak_popov()
       P = weak_popov(A)
       @test is_weak_popov(P, r)
 
-      P, U = weak_popov_with_trafo(A)
+      P, U = weak_popov_with_transform(A)
       @test is_weak_popov(P, r)
       @test U*A == P
       @test isunit(det(U))
@@ -1689,8 +1783,10 @@ function test_gen_mat()
    test_gen_mat_solve_lu()
    test_gen_mat_solve_rational()
    test_gen_mat_solve_triu()
+   test_gen_mat_can_solve_left_reduced_triu()
    test_gen_mat_rref()
    test_gen_mat_nullspace()
+   test_gen_mat_kernel()
    test_gen_mat_inversion()
    test_gen_mat_hessenberg()
    test_gen_mat_kronecker_product()

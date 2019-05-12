@@ -153,8 +153,8 @@ N = sub(M, 1, 1, 2, 2)
 
 Most of the following generic functionality is available for both matrix spaces and
 matrix algebras. Exceptions include functions that do not return or accept square
-matrices or which cannot specify a parent. Such functions include `solve` and `nullspace`
-which can't be provided for matrix algebras.
+matrices or which cannot specify a parent. Such functions include `solve`, `kernel`,
+and `nullspace` which can't be provided for matrix algebras.
 
 For details on functionality that is provided for matrix algebras only, see the dedicated
 section of the documentation.
@@ -164,6 +164,10 @@ section of the documentation.
 As well as the Ring and Matrix interfaces, the following functions are provided to
 manipulate matrices and to set and retrieve entries and other basic data associated
 with the matrices.
+
+```@docs
+dense_matrix_type(::Ring)
+```
 
 ```@docs
 nrows(::MatElem)
@@ -182,6 +186,7 @@ S = MatrixSpace(R, 3, 3)
 A = S([t + 1 t R(1); t^2 t t; R(-2) t + 2 t^2 + t + 1])
 B = S([R(2) R(3) R(1); t t + 1 t + 2; R(-1) t^2 t^3])
 
+T = dense_matrix_type(R)
 r = nrows(B)
 c = ncols(B)
 M = A + B
@@ -338,7 +343,7 @@ isrref(A)
 
 ```@docs
 hnf{T <: RingElem}(::MatElem{T})
-hnf_with_trafo{T <: RingElem}(::MatElem{T})
+hnf_with_transform{T <: RingElem}(::MatElem{T})
 ```
 
 ### Determinant
@@ -391,6 +396,10 @@ solve_rational{T <: RingElem}(::MatElem{T}, ::MatElem{T})
 
 ```@docs
 solve_triu{T <: FieldElem}(::MatElem{T}, ::MatElem{T}, ::Bool)
+```
+
+```@docs
+can_solve_left_reduced_triu{T <: RingElement}(::MatElem{T}, ::MatElem{T})
 ```
 
 **Examples**
@@ -474,6 +483,28 @@ M = S([-6*x^2+6*x+12 -12*x^2-21*x-15 -15*x^2+21*x+33 -21*x^2-9*x-9;
        -10*x^2+10*x+20 -20*x^2+70*x-25 150*x^2-140*x-85 105*x^2+90*x-50])
    
 n, N = nullspace(M)
+```
+
+### Kernel
+
+```@docs
+kernel{T <: RingElem}(::MatElem{T})
+left_kernel{T <: RingElem}(::MatElem{T})
+right_kernel{T <: RingElem}(::MatElem{T})
+```
+
+**Examples**
+
+```julia
+S = MatrixSpace(ZZ, 4, 4)
+
+M = S([1 2 0 4;
+       2 0 1 1;
+       0 1 1 -1;
+       2 -1 0 2])
+
+nr, Nr = kernel(M)
+nl, Nl = left_kernel(M)
 ```
 
 ### Hessenberg form
@@ -563,8 +594,8 @@ entries in a univariate polynomial ring over a field.
 
 ```@docs
 weak_popov{T <: PolyElem}(::Generic.Mat{T})
-weak_popov_with_trafo{T <: PolyElem}(::Generic.Mat{T})
+weak_popov_with_transform{T <: PolyElem}(::Generic.Mat{T})
 popov{T <: PolyElem}(::Generic.Mat{T})
-popov_with_trafo{T <: PolyElem}(::Generic.Mat{T})
+popov_with_transform{T <: PolyElem}(::Generic.Mat{T})
 ```
 
