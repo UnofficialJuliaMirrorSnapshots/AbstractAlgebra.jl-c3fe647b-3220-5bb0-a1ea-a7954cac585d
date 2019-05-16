@@ -82,9 +82,9 @@ function test_gen_mat_constructors()
    R, t = PolynomialRing(QQ, "t")
    S = MatrixSpace(R, 3, 3)
 
-   @test elem_type(S) == Generic.Mat{elem_type(R)}
-   @test elem_type(Generic.MatSpace{elem_type(R)}) == Generic.Mat{elem_type(R)}
-   @test parent_type(Generic.Mat{elem_type(R)}) == Generic.MatSpace{elem_type(R)}
+   @test elem_type(S) == Generic.MatSpaceElem{elem_type(R)}
+   @test elem_type(Generic.MatSpace{elem_type(R)}) == Generic.MatSpaceElem{elem_type(R)}
+   @test parent_type(Generic.MatSpaceElem{elem_type(R)}) == Generic.MatSpace{elem_type(R)}
    @test base_ring(S) == R
    @test nrows(S) == 3
    @test ncols(S) == 3
@@ -125,13 +125,13 @@ function test_gen_mat_constructors()
 
    for T in [R, Int, BigInt, Rational{Int}, Rational{BigInt}]
       M = matrix(R, map(T, arr))
-      @test isa(M, Generic.Mat{elem_type(R)})
+      @test isa(M, Generic.MatSpaceElem{elem_type(R)})
       @test M.base_ring == R
       @test nrows(M) == 2
       @test ncols(M) == 2
 
       M2 = matrix(R, 2, 3, map(T, arr2))
-      @test isa(M2, Generic.Mat{elem_type(R)})
+      @test isa(M2, Generic.MatSpaceElem{elem_type(R)})
       @test M2.base_ring == R
       @test nrows(M2) == 2
       @test ncols(M2) == 3
@@ -140,19 +140,19 @@ function test_gen_mat_constructors()
    end
 
    M = matrix(R, arr')
-   @test isa(M, Generic.Mat{elem_type(R)})
+   @test isa(M, Generic.MatSpaceElem{elem_type(R)})
 
    M = matrix(R, 2, 3, view(arr2', 1:6))
-   @test isa(M, Generic.Mat{elem_type(R)})
+   @test isa(M, Generic.MatSpaceElem{elem_type(R)})
 
    M3 = zero_matrix(R, 2, 3)
 
-   @test isa(M3, Generic.Mat{elem_type(R)})
+   @test isa(M3, Generic.MatSpaceElem{elem_type(R)})
    @test M3.base_ring == R
 
    M4 = identity_matrix(R, 3)
 
-   @test isa(M4, Generic.Mat{elem_type(R)})
+   @test isa(M4, Generic.MatSpaceElem{elem_type(R)})
    @test M4.base_ring == R
 
    x = zero_matrix(R, 2, 2)
@@ -1759,6 +1759,29 @@ function test_gen_mat_weak_popov()
    println("PASS")
 end
 
+function test_gen_mat_views()
+   print("Generic.Mat.views...")
+
+   M = matrix(ZZ, 3, 3, BigInt[1, 2, 3, 2, 3, 4, 3, 4, 5])
+   M2 = deepcopy(M)
+
+   N1 = @view M[:,1:2]
+   N2 = @view M[1:2, :]
+   N3 = @view M[:,:]
+
+   @test isa(N1, Generic.MatSpaceView)
+   @test isa(N2, Generic.MatSpaceView)
+   @test isa(N3, Generic.MatSpaceView)
+
+   @test N2*N1 == matrix(ZZ, 2, 2, BigInt[14, 20, 20, 29])
+   @test N3*N3 == M*M
+
+   @test fflu(N3) == fflu(M) # tests that deepcopy is correct
+   @test M2 == M
+
+   println("PASS")
+end
+
 function test_gen_mat()
    test_gen_mat_constructors()
    test_gen_mat_size()
@@ -1802,6 +1825,7 @@ function test_gen_mat()
    test_gen_mat_snf()
    test_gen_mat_weak_popov()
    test_gen_mat_minors()
+   test_gen_mat_views()
 
    println("")
 end
