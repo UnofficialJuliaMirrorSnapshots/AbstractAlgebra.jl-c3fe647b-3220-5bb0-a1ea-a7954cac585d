@@ -39,10 +39,6 @@ end
 """
 supermodule(M::QuotientModule{T}) where T <: RingElement = M.m
 
-function check_parent(v1::quotient_module_elem{T}, v2::quotient_module_elem{T}) where T <: RingElement
-   parent(v1) !== parent(v2) && error("Incompatible module elements")
-end
-
 ###############################################################################
 #
 #   String I/O
@@ -56,12 +52,12 @@ function show_gens_rels(io::IO, N::AbstractAlgebra.FPModule{T}) where T <: RingE
    else
       print(io, "s and ")
    end
-   if length(relations(N)) == 0
+   if length(rels(N)) == 0
       println(io, "no relations")
    else
       println(io, "relations:")
-      rels = [string(v) for v in relations(N)]
-      print(IOContext(io, :compact => true), join(rels, ", "))
+      Nrels = [string(v) for v in rels(N)]
+      print(IOContext(io, :compact => true), join(Nrels, ", "))
    end
 end
 
@@ -126,6 +122,7 @@ end
 ###############################################################################
 
 function *(v::quotient_module_elem{T}, c::T) where T <: RingElem
+   base_ring(v) != parent(c) && error("Incompatible rings")
    N = parent(v)
    return N(v.v*c)
 end
@@ -136,6 +133,7 @@ function *(v::quotient_module_elem{T}, c::U) where {T <: RingElement, U <: Union
 end
 
 function *(c::T, v::quotient_module_elem{T}) where T <: RingElem
+   base_ring(v) != parent(c) && error("Incompatible rings")
    N = parent(v)
    return N(c*v.v)
 end
@@ -151,6 +149,11 @@ end
 #
 ###############################################################################
 
+function ==(M::QuotientModule{T}, N::QuotientModule{T}) where T <: RingElement
+   check_parent(M, N)
+   return M.m == N.m && M.rels == N.rels
+end
+
 function ==(m::quotient_module_elem{T}, n::quotient_module_elem{T}) where T <: RingElement
    check_parent(m, n)
    return m.v == n.v
@@ -162,12 +165,12 @@ end
 #
 ###############################################################################
 
-function reduce_mod_rels(v::AbstractAlgebra.MatElem{T}, rels::Vector{<:AbstractAlgebra.MatElem{T}}) where T <: RingElement
+function reduce_mod_rels(v::AbstractAlgebra.MatElem{T}, vrels::Vector{<:AbstractAlgebra.MatElem{T}}) where T <: RingElement
    R = base_ring(v)
    v = deepcopy(v) # don't destroy input
    i = 1
    t1 = R()
-   for rel in rels # for each relation
+   for rel in vrels # for each relation
       while iszero(rel[1, i])
          i += 1
       end
@@ -185,14 +188,14 @@ end
 function (N::QuotientModule{T})(v::Vector{T}) where T <: RingElement
    length(v) != ngens(N) && error("Length of vector does not match number of generators")
    mat = matrix(base_ring(N), 1, length(v), v)
-   mat = reduce_mod_rels(mat, relations(N))
+   mat = reduce_mod_rels(mat, rels(N))
    return quotient_module_elem{T}(N, mat)
 end
 
 function (N::QuotientModule{T})(v::AbstractAlgebra.MatElem{T}) where T <: RingElement
    ncols(v) != ngens(N) && error("Length of vector does not match number of generators")
    nrows(v) != 1 && ("Not a vector in quotient_module_elem constructor")
-   v = reduce_mod_rels(v, relations(N))
+   v = reduce_mod_rels(v, rels(N))
    return quotient_module_elem{T}(N, v)
 end
 
@@ -202,35 +205,64 @@ end
 #
 ###############################################################################
 
-function projection(v::AbstractAlgebra.MatElem{T}, rels::Vector{<:AbstractAlgebra.MatElem{T}}, N::QuotientModule{T}) where T <: RingElement
+function projection(v::AbstractAlgebra.MatElem{T}, vrels::Vector{<:AbstractAlgebra.MatElem{T}}, N::QuotientModule{T}) where T <: RingElement
    R = base_ring(N)
    # reduce mod relations
-   v = reduce_mod_rels(v, rels)
+   v = reduce_mod_rels(v, vrels)
    # project down to quotient module
    r = zero_matrix(R, 1, ngens(N))
    for i = 1:ngens(N)
       r[1, i] = v[1, N.gen_cols[i]]
    end
-   return quotient_module_elem{T}(N, r)
+   return r
 end
 
-@doc Markdown.doc"""
-    QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::Submodule{T}) where T <: RingElement
-> Return the quotient `M` of the module `m` by the module `sub` (which must
-> have been constructed as a submodule of `m`) along with the canonical
-> quotient map from `m` to `M`.
-"""
 function QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::Submodule{T}) where T <: RingElement
-   supermodule(sub) !== m && error("Not a submodule in QuotientModule constructor")
-   nrels = ngens(sub)
-   rels = Vector{dense_matrix_type(T)}(undef, nrels)
-   gens = generators(sub)
-   for i = 1:nrels
-      rels[i] = gens[i].v
+   !issubmodule(m, sub) && error("Not a submodule in QuotientModule constructor")
+   R = base_ring(m)
+   if sub === m # quotient of submodule by itself
+      srels = [v.v for v in gens(sub)]
+      M = QuotientModule{T}(m, srels)
+      f = ModuleHomomorphism(m, M,
+          matrix(R, ngens(m), 0, []))
+   else
+      G = generators(sub)
+      S = sub
+      if supermodule(S) !== m
+         while supermodule(S) !== m
+            G = elem_type(typeof(supermodule(S.m)))[S.m.map(v) for v in G]
+            S = supermodule(S)
+         end
+         sub, v = Submodule(m, G)
+         G = generators(sub)
+      end
+      nrels = ngens(sub)
+      srels = Vector{dense_matrix_type(T)}(undef, nrels)
+      for i = 1:nrels
+         srels[i] = G[i].v
+      end
+      M = QuotientModule{T}(m, srels)
+      hvecs = [projection(x.v, srels, M) for x in gens(m)]
+      hmat = [hvecs[i][1, j] for i in 1:ngens(m) for j in 1:ngens(M)]
+      f = ModuleHomomorphism(m, M, matrix(R, ngens(m), ngens(M), hmat))
    end
-   M = QuotientModule{T}(m, rels)
-   f = map_from_func(m, M, x -> projection(x.v, rels, M))
    M.map = f
    return M, f
 end
 
+@doc Markdown.doc"""
+    QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return the quotient `M` of the module `m` by the module `sub` (which must
+> have been (transitively) constructed as a submodule of `m` or be `m` itself)
+> along with the canonical quotient map from `m` to `M`.
+"""
+function QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   # The only case we need to deal with here is where `m == sub`. In all other
+   # cases, sub will be of type Submodule.
+   m !== sub && error("Not a submodule in QuotientModule constructor")
+   srels = [v.v for v in gens(sub)]
+   M = QuotientModule{T}(m, srels)
+   f = ModuleHomomorphism(m, M, matrix(R, ngens(m), 0, []))
+   M.map = f
+   return M, f   
+end

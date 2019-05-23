@@ -4,7 +4,7 @@
 #
 ###############################################################################
 
-export iscompatible
+export iscompatible, issubmodule
 
 ###############################################################################
 #
@@ -22,12 +22,12 @@ function zero(M::AbstractAlgebra.FPModule{T}) where T <: RingElement
 end
 
 @doc Markdown.doc"""
-    relations(M::AbstractAlgebra.FPModule{T}) where T <: RingElement
-> Return all relations between generators of the given module, where each
-> relation is given as an element of `M`. The relation matrix whose rows
-> are the returned relations will be in reduced form (hnf/rref).
+    rels(M::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return a vector of all the relations between generators of the given
+> module, where each relation is given as row matrix. The relation matrix
+> whose rows are the returned relations will be in reduced form (hnf/rref).
 """
-relations(M::AbstractAlgebra.FPModule{T}) where T <: RingElement = M.rels::Vector{dense_matrix_type(T)}
+rels(M::AbstractAlgebra.FPModule{T}) where T <: RingElement = M.rels::Vector{dense_matrix_type(T)}
 
 @doc Markdown.doc"""
     iscompatible(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
@@ -35,6 +35,7 @@ relations(M::AbstractAlgebra.FPModule{T}) where T <: RingElement = M.rels::Vecto
 > (transitively) submodules of the same module, P. Otherwise return `false, M`.
 """
 function iscompatible(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   check_parent(M, N)
    M1 = M
    M2 = N
    while isa(M1, Submodule)
@@ -56,7 +57,49 @@ function iscompatible(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModul
    return false, M
 end
 
+@doc Markdown.doc"""
+    issubmodule(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return `true` if $N$ was constructed as a submodule of $M$. The relation
+> is taken transitively (i.e. subsubmodules are submodules for the purposes
+> of this relation, etc). The module $M$ is also considered a submodule of
+> itself for this relation.
+"""
+function issubmodule(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   check_parent(M, N)
+   if M === N
+      return true
+   end
+   while isa(N, Submodule)
+      N = supermodule(N)
+      if M === N
+         return true
+      end
+   end
+   return false
+end
+
+function check_parent(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   base_ring(M) !== base_ring(N) && error("Incompatible modules")
+end
+
+function check_parent(M::AbstractAlgebra.FPModuleElem{T}, N::AbstractAlgebra.FPModuleElem{T}) where T <: RingElement
+   parent(M) !== parent(N) && error("Incompatible modules")
+end
+
+###############################################################################
+#
+#   Intersection
+#
+###############################################################################
+
+@doc Markdown.doc"""
+    Base.intersect(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return the intersection of the modules $M$ as a submodule of $M$. Note that
+> $M$ and $N$ must be (constructed as) submodules (transitively) of some common
+> module $P$.
+"""
 function Base.intersect(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   check_parent(M, N)
    # Compute the common supermodule P of M and N
    flag, P = iscompatible(M, N)
    !flag && error("Modules not compatible")
@@ -77,8 +120,8 @@ function Base.intersect(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPMod
    # Make matrix containing all generators and relations as rows
    r1 = ngens(M)
    r2 = ngens(N)
-   rels = relations(P)
-   r3 = length(rels)
+   prels = rels(P)
+   r3 = length(prels)
    c = ngens(P)
    mat = matrix(base_ring(M), r1 + r2 + r3, c, [0 for i in 1:(r1 + r2 + r3)*c])
    # We flip the rows of the matrix so the input to Submodule is in upper
@@ -96,7 +139,7 @@ function Base.intersect(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPMod
    end
    for i = 1:r3
       for j = 1:c
-         mat[rn - i - r1 - r2 + 1, j] = rels[i][1, j]
+         mat[rn - i - r1 - r2 + 1, j] = prels[i][1, j]
       end
    end
    # Find the left kernel space of the matrix
@@ -109,7 +152,21 @@ function Base.intersect(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPMod
    return Submodule(M, I)
 end
 
+###############################################################################
+#
+#   Comparison
+#
+###############################################################################
+
+@doc Markdown.doc"""
+    ==(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return `true` if the modules are (constructed to be) the same module
+> elementwise. This is not object equality and it is not isomorphism. In fact,
+> each method of constructing modules (submodules, quotient modules, products,
+> etc.) must extend this notion of equality to the modules they create.
+"""
 function ==(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   check_parent(M, N)
    # Compute the common supermodule P of M and N
    flag, P = iscompatible(M, N)
    !flag && error("Modules not compatible")
@@ -128,28 +185,28 @@ function ==(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) wher
       M2 = supermodule(M2)
    end
    # Put (rewritten) gens of M and N into matrices with relations of P
-   rels = relations(P)
+   prels = rels(P)
    c = ngens(P)
    r1 = ngens(M)
    r2 = ngens(N)
-   mat1 = matrix(base_ring(M), r1 + length(rels), c,
-                 [0 for i in 1:(r1 + length(rels))*c])
+   mat1 = matrix(base_ring(M), r1 + length(prels), c,
+                 [0 for i in 1:(r1 + length(prels))*c])
    for i = 1:r1
       for j = 1:c
          mat1[i, j] = G1[i].v[1, j]
       end
    end
-   mat2 = matrix(base_ring(M), r2 + length(rels), c,
-                 [0 for i in 1:(r2 + length(rels))*c])
+   mat2 = matrix(base_ring(M), r2 + length(prels), c,
+                 [0 for i in 1:(r2 + length(prels))*c])
    for i = 1:r2
       for j = 1:c
          mat2[i, j] = G2[i].v[1, j]
       end
    end
-   for i = 1:length(rels)
+   for i = 1:length(prels)
       for j = 1:c
-         mat1[i + r1, j] = rels[i][1, j]
-         mat2[i + r2, j] = rels[i][1, j]
+         mat1[i + r1, j] = prels[i][1, j]
+         mat2[i + r2, j] = prels[i][1, j]
       end
    end
    # Put the matrices into reduced form
@@ -206,7 +263,6 @@ function cull_matrix(M::AbstractAlgebra.MatElem{T}) where T <: RingElement
    culled = Vector{Int}(undef, 0)
    pivots = Vector{Int}(undef, 0)
    col = 1
-   row = 1
    new_col = 1
    for i in 1:nrels
       while M[i, col] == 0
@@ -215,17 +271,27 @@ function cull_matrix(M::AbstractAlgebra.MatElem{T}) where T <: RingElement
          new_col += 1
       end
       if !isunit(M[i, col])
-         push!(culled, row)
+         push!(culled, i)
          push!(gen_cols, col)
          push!(pivots, new_col)
          new_col += 1
       end
       col += 1
-      row += 1
    end
    while col <= ncols(M)
       push!(gen_cols, col)
       col += 1
+   end
+   # if there is only one row left, can remove it if *any* column is a unit
+   if length(culled) == 1
+      for i = pivots[1]:length(gen_cols)
+         if isunit(M[culled[1], gen_cols[i]])
+            pop!(culled) # remove row
+            pop!(pivots) # remove pivot for row
+            deleteat!(gen_cols, i) # remove column corresponding to unit entry
+            break
+         end
+      end
    end
    return gen_cols, culled, pivots
 end

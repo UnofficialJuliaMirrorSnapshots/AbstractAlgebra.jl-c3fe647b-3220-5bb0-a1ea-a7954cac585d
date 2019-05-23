@@ -1084,6 +1084,24 @@ end
 
 ###############################################################################
 #
+#   ModuleHomomorphism
+#
+###############################################################################
+
+mutable struct ModuleHomomorphism{T <: RingElement} <: AbstractAlgebra.Map{AbstractAlgebra.FPModule{T}, AbstractAlgebra.FPModule{T}, AbstractAlgebra.FunctionalMap, ModuleHomomorphism}
+
+   domain::AbstractAlgebra.FPModule{T}
+   codomain::AbstractAlgebra.FPModule{T}
+   matrix::AbstractAlgebra.MatElem{T}
+   image_fn::Function
+
+   function ModuleHomomorphism{T}(D::AbstractAlgebra.FPModule{T}, C::AbstractAlgebra.FPModule{T}, m::AbstractAlgebra.MatElem{T}) where T <: RingElement
+      z = new(D, C, m, x::AbstractAlgebra.FPModuleElem{T} -> C(x.v*m))
+   end
+end
+
+###############################################################################
+#
 #   Submodule/submodule_elem
 #
 ###############################################################################
@@ -1095,7 +1113,7 @@ mutable struct Submodule{T <: RingElement} <: AbstractAlgebra.FPModule{T}
    gen_cols::Vector{Int}
    pivots::Vector{Int}
    base_ring::Ring
-   map::FunctionalMap{Submodule{T}, <:AbstractAlgebra.FPModule}
+   map::ModuleHomomorphism{T}
 
    function Submodule{T}(M::AbstractAlgebra.FPModule{T}, gens::Vector{<:AbstractAlgebra.FPModuleElem{T}}, rels::Vector{<:AbstractAlgebra.MatElem{T}}, gen_cols::Vector{Int}, pivots::Vector{Int}) where T <: RingElement
       z = new{T}(M, gens, rels, gen_cols, pivots, base_ring(M))
@@ -1123,21 +1141,21 @@ mutable struct QuotientModule{T <: RingElement} <: AbstractAlgebra.FPModule{T}
    gen_cols::Vector{Int} # which original columns correspond to gens of quotient
    pivots::Vector{Int} # pivot column of each culled relation in new rels matrix
    base_ring::Ring
-   map::FunctionalMap{<:AbstractAlgebra.FPModule{T}, QuotientModule{T}}
+   map::ModuleHomomorphism{T}
 
-   function QuotientModule{T}(M::AbstractAlgebra.FPModule{T}, rels::Vector{S}) where S <:AbstractAlgebra.MatElem{T} where T <: RingElement
+   function QuotientModule{T}(M::AbstractAlgebra.FPModule{T}, qrels::Vector{S}) where S <:AbstractAlgebra.MatElem{T} where T <: RingElement
       # concatenate relations in M and new rels
       R = base_ring(M)
-      old_rels = relations(M)
-      combined_rels = zero_matrix(R, length(old_rels) + length(rels), ngens(M))
+      old_rels = rels(M)
+      combined_rels = zero_matrix(R, length(old_rels) + length(qrels), ngens(M))
       for i = 1:length(old_rels)
          for j = 1:ngens(M)
             combined_rels[i, j] = old_rels[i][1, j]
          end
       end
-      for i = 1:length(rels)
+      for i = 1:length(qrels)
          for j = 1:ngens(M)
-            combined_rels[i + length(old_rels), j] = rels[i][1, j]
+            combined_rels[i + length(old_rels), j] = qrels[i][1, j]
          end
       end
       # compute the hnf/rref of the combined relations
@@ -1164,20 +1182,3 @@ mutable struct quotient_module_elem{T <: RingElement} <: AbstractAlgebra.FPModul
    end
 end
 
-###############################################################################
-#
-#   ModuleHomomorphism
-#
-###############################################################################
-
-mutable struct ModuleHomomorphism{T <: RingElement} <: AbstractAlgebra.Map{AbstractAlgebra.FPModule{T}, AbstractAlgebra.FPModule{T}, AbstractAlgebra.FunctionalMap, ModuleHomomorphism}
-
-   domain::AbstractAlgebra.FPModule{T}
-   codomain::AbstractAlgebra.FPModule{T}
-   matrix::AbstractAlgebra.MatElem{T}
-   image_fn::Function
-
-   function ModuleHomomorphism{T}(D::AbstractAlgebra.FPModule{T}, C::AbstractAlgebra.FPModule{T}, m::AbstractAlgebra.MatElem{T}) where T <: RingElement
-      z = new(D, C, m, x::AbstractAlgebra.FPModuleElem{T} -> C(x.v*m))
-   end
-end

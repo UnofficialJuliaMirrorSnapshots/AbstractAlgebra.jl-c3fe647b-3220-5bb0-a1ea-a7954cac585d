@@ -9,6 +9,11 @@ function test_quotient_module_constructors()
    N, f = Submodule(M, [m])
    Q, g = QuotientModule(M, N)
 
+   V = gens(M)
+   for v in V
+      @test parent(g(v)) == Q
+   end
+
    @test isa(Q, Generic.QuotientModule)
 
    @test elem_type(Q) == Generic.quotient_module_elem{elem_type(R)}
@@ -23,7 +28,32 @@ function test_quotient_module_constructors()
    N, f = Subspace(M, [m])
    Q, g = QuotientSpace(M, N)
 
+   V = gens(M)
+   for v in V
+      @test parent(g(v)) == Q
+   end
+
    @test isa(Q, Generic.QuotientModule)
+
+   for R in [ZZ, QQ]
+      for iter = 1:40
+         M = rand_module(R, -10:10)
+         ngens1 = rand(1:5)
+         S = [rand(M, -10:10) for i in 1:ngens1]
+         N, f = Submodule(M, S)
+         ngens2 = rand(1:5)
+         T = [rand(N, -10:10) for i in 1:ngens2]
+         P, g = Submodule(N, T)
+         Q1, h1 = QuotientModule(M, P)
+         
+         U = [f(v) for v in T]
+         V, k = Submodule(M, U)
+
+         Q2, h2 = QuotientModule(M, V)
+
+         @test Q2 == Q1
+      end
+   end
 
    println("PASS")
 end
