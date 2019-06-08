@@ -4,7 +4,7 @@
 #
 ###############################################################################
 
-export iscompatible, issubmodule
+export iscompatible, issubmodule, isisomorphic
 
 ###############################################################################
 #
@@ -233,6 +233,20 @@ function ==(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) wher
       end
    end
    return true
+end
+
+###############################################################################
+#
+#   Isomorphism
+#
+###############################################################################
+
+@doc Markdown.doc"""
+   isisomorphic(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return `true` if the modules $M$ and $N$ are isomorphic.
+"""
+function isisomorphic(M::AbstractAlgebra.FPModule{T}, N::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   return invariant_factors(M) == invariant_factors(N)
 end
 
 ###############################################################################
