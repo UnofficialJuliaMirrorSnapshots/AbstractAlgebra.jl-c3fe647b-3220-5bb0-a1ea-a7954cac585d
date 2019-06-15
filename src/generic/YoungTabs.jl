@@ -539,7 +539,7 @@ end
 julia> y = YoungTableau([4,3,1]);
 
 julia> matrix_repr(y)
-3×4 SparseMatrixCSC{Int64,Int64} with 8 stored entries:
+3×4 SparseArrays.SparseMatrixCSC{Int64,Int64} with 8 stored entries:
   [1, 1]  =  1
   [2, 1]  =  5
   [3, 1]  =  8
@@ -782,7 +782,7 @@ end
 > `xi.lam` which is not contained in `xi.mu`. Otherwise return `0`.
 """
 function getindex(xi::SkewDiagram, n::Integer)
-   i,j = ind2sub(size(xi), n)
+   i, j = Tuple(CartesianIndices(xi)[n])
    (i,j) in xi && return 1
    return 0
 end

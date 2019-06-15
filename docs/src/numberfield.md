@@ -1,5 +1,8 @@
 ```@meta
 CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
 ```
 
 # Number fields
@@ -32,11 +35,16 @@ $\mathbb{Q}[x]$.
 
 **Examples**
 
-```julia
-R, x = PolynomialRing(QQ, "x")
-K, a = NumberField(x^3 + 3x + 1, "a")
+```jldoctest
+julia> R, x = PolynomialRing(QQ, "x")
+(Univariate Polynomial Ring in x over Rationals, x)
 
-f = a^2 + 2a + 7
+julia> K, a = NumberField(x^3 + 3x + 1, "a")
+(Residue field of Univariate Polynomial Ring in x over Rationals modulo x^3+3//1*x+1//1, x)
+
+julia> f = a^2 + 2a + 7
+x^2+2//1*x+7//1
+
 ```
 
 ## Basic field functionality

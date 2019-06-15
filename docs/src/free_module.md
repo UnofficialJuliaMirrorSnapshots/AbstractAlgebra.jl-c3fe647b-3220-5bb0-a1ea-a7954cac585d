@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Free Modules and Vector Spaces
 
 AbstractAlgebra allows the construction of the free module of any rank over any
@@ -36,9 +43,13 @@ Construct the free module/vector space of given rank/dimension.
 
 **Examples**
 
-```julia
-M = FreeModule(ZZ, 3)
-V = VectorSpace(QQ, 2)
+```jldoctest
+julia> M = FreeModule(ZZ, 3)
+Free module of rank 3 over Integers
+
+julia> V = VectorSpace(QQ, 2)
+Vector space of dimension 2 over Rationals
+
 ```
 
 ### Basic manipulation
@@ -50,12 +61,19 @@ dim(V::Generic.FreeModule{T}) where T <: AbstractAlgebra.FieldElem
 
 **Examples**
 
-```julia
-M = FreeModule(ZZ, 3)
-V = VectorSpace(QQ, 2)
+```jldoctest
+julia> M = FreeModule(ZZ, 3)
+Free module of rank 3 over Integers
 
-rank(M)
-dim(V)
+julia> V = VectorSpace(QQ, 2)
+Vector space of dimension 2 over Rationals
+
+julia> rank(M)
+3
+
+julia> dim(V)
+2
+
 ```
 
 

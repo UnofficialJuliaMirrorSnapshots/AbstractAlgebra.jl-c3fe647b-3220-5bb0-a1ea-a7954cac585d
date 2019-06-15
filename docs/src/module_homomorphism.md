@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Module Homomorphisms
 
 Abstract Algebra provides homomorphisms of finitely presented modules.
@@ -17,13 +24,21 @@ Generic.ModuleHomomorphism(M1::AbstractAlgebra.FPModule{T}, M2::AbstractAlgebra.
 
 **Examples**
 
-```julia
-M = FreeModule(ZZ, 2)
-f = ModuleHomomorphism(M, M, matrix(ZZ, 2, 2, [1, 2, 3, 4]))
+```jldoctest
+julia> M = FreeModule(ZZ, 2)
+Free module of rank 2 over Integers
 
-m = M([ZZ(1), ZZ(2)])
+julia> f = ModuleHomomorphism(M, M, matrix(ZZ, 2, 2, [1, 2, 3, 4]))
+Module homomorphism with
+Domain: Free module of rank 2 over Integers
+Codomain: Free module of rank 2 over Integers
 
-f(m)
+julia> m = M([ZZ(1), ZZ(2)])
+(1, 2)
+
+julia> f(m)
+(7, 10)
+
 ```
 
 ### Kernels
@@ -34,15 +49,34 @@ kernel(f::Generic.ModuleHomomorphism{T}) where T <: RingElement
 
 **Examples**
 
-```julia
-M = FreeModule(ZZ, 3)
+```jldoctest
+julia> M = FreeModule(ZZ, 3)
+Free module of rank 3 over Integers
 
-m = M([ZZ(1), ZZ(2), ZZ(3)])
+julia> m = M([ZZ(1), ZZ(2), ZZ(3)])
+(1, 2, 3)
 
-S, f = Submodule(M, [m])
-Q, g = QuotientModule(M, S)
+julia> S, f = Submodule(M, [m])
+(Submodule over Integers with 1 generator and no relations
+, Module homomorphism with
+Domain: Submodule over Integers with 1 generator and no relations
 
-kernel(g)
+Codomain: Free module of rank 3 over Integers)
+
+julia> Q, g = QuotientModule(M, S)
+(Quotient module over Integers with 2 generators and no relations
+, Module homomorphism with
+Domain: Free module of rank 3 over Integers
+Codomain: Quotient module over Integers with 2 generators and no relations
+)
+
+julia> kernel(g)
+(Submodule over Integers with 1 generator and no relations
+, Module homomorphism with
+Domain: Submodule over Integers with 1 generator and no relations
+
+Codomain: Free module of rank 3 over Integers)
+
 ```
 
 ### Images

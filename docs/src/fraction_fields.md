@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Fraction Field Interface
 
 Fraction fields are supported in AbstractAlgebra.jl, at least for gcd domains.
@@ -65,12 +72,19 @@ Return $x/y$ where $y$ is in the base ring of $x$.
 
 **Examples**
 
-```julia
-R, x = PolynomialRing(ZZ, "x")
+```jldoctest
+julia> R, x = PolynomialRing(ZZ, "x")
+(Univariate Polynomial Ring in x over Integers, x)
 
-f = (x^2 + x + 1)//(x^3 + 3x + 1)
-g = f//x
-h = x//f
+julia> f = (x^2 + x + 1)//(x^3 + 3x + 1)
+(x^2+x+1)//(x^3+3*x+1)
+
+julia> g = f//x
+(x^2+x+1)//(x^4+3*x^2+x)
+
+julia> h = x//f
+(x^4+3*x^2+x)//(x^2+x+1)
+
 ```
 
 ### Basic manipulation of fields and elements
@@ -91,12 +105,18 @@ the `canonical_unit` and `gcd` functions on the base ring.
 
 **Examples**
 
-```julia
-R, x = PolynomialRing(QQ, "x")
+```jldoctest
+julia> R, x = PolynomialRing(QQ, "x")
+(Univariate Polynomial Ring in x over Rationals, x)
 
-f = (x^2 + x + 1)//(x^3 + 3x + 1)
+julia> f = (x^2 + x + 1)//(x^3 + 3x + 1)
+(x^2+x+1//1)//(x^3+3//1*x+1//1)
 
-n = numerator(f)
-d = denominator(f)
+julia> n = numerator(f)
+x^2+x+1//1
+
+julia> d = denominator(f)
+x^3+3//1*x+1//1
+
 ```
 

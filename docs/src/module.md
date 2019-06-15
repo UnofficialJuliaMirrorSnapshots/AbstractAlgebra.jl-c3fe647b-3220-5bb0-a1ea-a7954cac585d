@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Module Interface
 
 AbstractAlgebra allows the construction of finitely presented modules (i.e.
@@ -78,14 +85,27 @@ relation is given as an AbstractAlgebra row matrix.
 
 **Examples**
 
-```julia
-M = FreeModule(QQ, 2)
+```jldoctest
+julia> M = FreeModule(QQ, 2)
+Vector space of dimension 2 over Rationals
 
-n = ngens(M)
-G = gens(M)
-R = rels(M)
-g1 = gen(M, 1)
-!iszero(g1)
+julia> n = ngens(M)
+2
+
+julia> G = gens(M)
+2-element Array{AbstractAlgebra.Generic.free_module_elem{Rational{BigInt}},1}:
+ (1//1, 0//1)
+ (0//1, 1//1)
+
+julia> R = rels(M)
+0-element Array{AbstractAlgebra.Generic.MatSpaceElem{Rational{BigInt}},1}
+
+julia> g1 = gen(M, 1)
+(1//1, 0//1)
+
+julia> !iszero(g1)
+true
+
 ```
 
 ### Element constructors
@@ -123,10 +143,13 @@ zero(M::AbstractAlgebra.FPModule{T}) where T <: RingElement
 
 **Examples**
 
-```julia
-M = FreeModule(QQ, 2)
+```jldoctest
+julia> M = FreeModule(QQ, 2)
+Vector space of dimension 2 over Rationals
 
-z = zero(M)
+julia> z = zero(M)
+(0//1, 0//1)
+
 ```
 ### Comparison
 
@@ -136,10 +159,13 @@ z = zero(M)
 
 **Examples**
 
-```julia
-M = FreeModule(QQ, 2)
+```jldoctest
+julia> M = FreeModule(QQ, 2)
+Vector space of dimension 2 over Rationals
 
-M == M
+julia> M == M
+true
+
 ```
 
 ### Isomorphism
@@ -150,14 +176,33 @@ isisomorphic(::AbstractAlgebra.FPModule{T}, ::AbstractAlgebra.FPModule{T}) where
 
 **Examples**
 
-```julia
-M = FreeModule(ZZ, 3)
-m1 = rand(M, -10:10)
-m2 = rand(M, -10:10)
-S, f = Submodule(M, [m1, m2])
-I, g = image(f)
+```repl
+julia> M = FreeModule(ZZ, 3)
+Free module of rank 3 over Integers
 
-isisomorphic(S, I)
+julia> m1 = rand(M, -10:10)
+(0, -8, -8)
+
+julia> m2 = rand(M, -10:10)
+(-7, -5, -10)
+
+julia> S, f = Submodule(M, [m1, m2])
+(Submodule over Integers with 2 generators and no relations
+, Module homomorphism with
+Domain: Submodule over Integers with 2 generators and no relations
+
+Codomain: Free module of rank 3 over Integers)
+
+julia> I, g = image(f)
+(Submodule over Integers with 2 generators and no relations
+, Module homomorphism with
+Domain: Submodule over Integers with 2 generators and no relations
+
+Codomain: Free module of rank 3 over Integers)
+
+julia> isisomorphic(S, I)
+true
+
 ```
 
 ### Invariant Factor Decomposition
@@ -174,13 +219,39 @@ invariant_factors(::AbstractAlgebra.FPModule{T}) where T <: RingElement
 
 **Examples**
 
-```julia
-M = FreeModule(ZZ, 3)
-m1 = rand(M, -10:10)
-m2 = rand(M, -10:10)
-S, f = Submodule(M, [m1, m2])
-Q, g = QuotientModule(M, S)
+```repl
+julia> M = FreeModule(ZZ, 3)
+Free module of rank 3 over Integers
 
-I, f = snf(Q)
-invs = invariant_factors(Q)
+julia> m1 = rand(M, -10:10)
+(9, 7, 7)
+
+julia> m2 = rand(M, -10:10)
+(-6, 2, -8)
+
+julia> S, f = Submodule(M, [m1, m2])
+(Submodule over Integers with 2 generators and no relations
+, Module homomorphism with
+Domain: Submodule over Integers with 2 generators and no relations
+
+Codomain: Free module of rank 3 over Integers)
+
+julia> Q, g = QuotientModule(M, S)
+(Quotient module over Integers with 3 generators and relations:
+[3 9 -1], [0 20 -10], Module homomorphism with
+Domain: Free module of rank 3 over Integers
+Codomain: Quotient module over Integers with 3 generators and relations:
+[3 9 -1], [0 20 -10])
+
+julia> I, f = snf(Q)
+(Invariant factor decomposed module over Integers with invariant factors BigInt[10, 0], Module homomorphism with
+Domain: Invariant factor decomposed module over Integers with invariant factors BigInt[10, 0]
+Codomain: Quotient module over Integers with 3 generators and relations:
+[3 9 -1], [0 20 -10])
+
+julia> invs = invariant_factors(Q)
+2-element Array{BigInt,1}:
+ 10
+  0
+
 ```

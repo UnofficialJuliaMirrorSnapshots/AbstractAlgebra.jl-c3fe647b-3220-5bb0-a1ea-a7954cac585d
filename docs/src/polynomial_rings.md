@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Univariate Polynomial Ring Interface
 
 Univariate polynomial rings are supported in AbstractAlgebra, and in addition to the
@@ -104,12 +111,19 @@ of Julia `Int` values  if this can be done more efficiently.
 
 **Examples**
 
-```julia
-S, x = PolynomialRing(QQ, "x")
+```jldoctest
+julia> S, x = PolynomialRing(QQ, "x")
+(Univariate Polynomial Ring in x over Rationals, x)
 
-f = S(Rational{BigInt}[2, 3, 1])
-g = S(BigInt[1, 0, 4])
-h = S([4, 7, 2, 9])
+julia> f = S(Rational{BigInt}[2, 3, 1])
+x^2+3//1*x+2//1
+
+julia> g = S(BigInt[1, 0, 4])
+4//1*x^2+1//1
+
+julia> h = S([4, 7, 2, 9])
+9//1*x^3+2//1*x^2+7//1*x+4//1
+
 ```
 
 ### Data type and parent object methods
@@ -132,11 +146,17 @@ there is more than one variable and hence an array of symbols.
 
 **Examples**
 
-```julia
-S, x = PolynomialRing(QQ, "x")
+```jldoctest
+julia> S, x = PolynomialRing(QQ, "x")
+(Univariate Polynomial Ring in x over Rationals, x)
 
-vsym = var(S)
-V = symbols(S)
+julia> vsym = var(S)
+:x
+
+julia> V = symbols(S)
+1-element Array{Symbol,1}:
+ :x
+
 ```
 
 ### Basic manipulation of rings and elements
@@ -206,19 +226,33 @@ can also be defined to do nothing.
 
 **Examples**
 
-```julia
-S, x = PolynomialRing(ZZ, "x")
+```jldoctest
+julia> S, x = PolynomialRing(ZZ, "x")
+(Univariate Polynomial Ring in x over Integers, x)
 
-f = x^3 + 3x + 1
-g = S(BigInt[1, 2, 0, 1, 0, 0, 0]);
+julia> f = x^3 + 3x + 1
+x^3+3*x+1
 
-n = length(f)
-c = coeff(f, 1)
-set_length!(g, normalise(g, 7))
-g = setcoeff!(g, 2, BigInt(11))
-fit!(g, 8)
-g = setcoeff!(g, 7, BigInt(4))
+julia> g = S(BigInt[1, 2, 0, 1, 0, 0, 0]);
 
+julia> n = length(f)
+4
+
+julia> c = coeff(f, 1)
+3
+
+julia> set_length!(g, normalise(g, 7))
+4
+
+julia> g = setcoeff!(g, 2, BigInt(11))
+x^3+11*x^2+2*x+1
+
+julia> fit!(g, 8)
+
+julia> g = setcoeff!(g, 7, BigInt(4))
+4*x^7+x^3+11*x^2+2*x+1
+
+julia> 
 ```
 
 ## Optional functionality for polynomial rings

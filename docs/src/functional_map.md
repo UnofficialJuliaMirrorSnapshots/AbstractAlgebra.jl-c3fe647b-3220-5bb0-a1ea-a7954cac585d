@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Functional maps
 
 A functional map in AbstractAlgebra is a map which can be applied by evaluating a Julia
@@ -53,9 +60,21 @@ $R$ and $S$ corresponding to the Julia function $f$.
 
 **Examples**
 
-```julia
-f = map_from_func(ZZ, ZZ, x -> x + 1)
+```jldoctest
+julia> f = map_from_func(ZZ, ZZ, x -> x + 1)
+Map with the following data
 
-f(ZZ(2))
+Domain:
+=======
+Integers
+
+Codomain:
+========
+Integers
+
+
+julia> f(ZZ(2))
+3
+
 ```
 

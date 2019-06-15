@@ -1,3 +1,10 @@
+```@meta
+CurrentModule = AbstractAlgebra
+DocTestSetup = quote
+    using AbstractAlgebra
+end
+```
+
 # Map with inverse
 
 It is not possible to provide generic functionality to invert a map. However, sometimes
@@ -7,7 +14,7 @@ Recall that as map composition is not commutative, there is a notion of a left i
 and a right inverse for maps.
 
 To keep track of such inverse maps, AbstractAlgebra provides data types
-`Generic.MapWithRetraction` and `GenericMapWithSection`.
+`Generic.MapWithRetraction` and `Generic.MapWithSection`.
 
 Given a map $f : X \to Y$, a retraction of $f$ is a map $g : Y \to X$ such that
 $g(f(x)) = x$ for all $x \in X$.
@@ -50,10 +57,21 @@ codomain of $f$.
 
 **Examples**
 
-```julia
-f = map_with_retraction_from_func(ZZ, ZZ, x -> x + 1, x -> x - 1)
+```jldoctest
+julia> f = map_with_retraction_from_func(ZZ, ZZ, x -> x + 1, x -> x - 1)
+Map with retraction with the following data
 
-a = f(ZZ(1))
+Domain:
+=======
+Integers
+
+Codomain:
+========
+Integers
+
+julia> a = f(ZZ(1))
+2
+
 ```
 
 ## Functionality for maps with inverses
@@ -82,11 +100,38 @@ the second two functions return the corresponding second maps.
 
 **Examples**
 
-```julia
-f = map_with_retraction_from_func(ZZ, ZZ, x -> x + 1, x -> x - 1)
-g = inv(f)
-h = f*g
+```jldoctest
+julia> f = map_with_retraction_from_func(ZZ, ZZ, x -> x + 1, x -> x - 1)
+Map with retraction with the following data
 
-a = h(ZZ(1))
+Domain:
+=======
+Integers
+
+Codomain:
+========
+Integers
+
+julia> g = inv(f)
+Map with section with the following data
+
+Domain:
+=======
+Integers
+
+Codomain:
+========
+Integers
+
+julia> h = f*g
+Composite map consisting of the following
+
+Integers -> Integers
+then
+Integers -> Integers
+
+julia> a = h(ZZ(1))
+1
+
 ```
 
