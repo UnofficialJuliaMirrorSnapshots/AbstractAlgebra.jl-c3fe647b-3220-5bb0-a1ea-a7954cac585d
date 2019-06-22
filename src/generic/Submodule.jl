@@ -148,14 +148,19 @@ end
 function (N::Submodule{T})(v::Vector{T}) where T <: RingElement
    length(v) != ngens(N) && error("Length of vector does not match number of generators")
    mat = matrix(base_ring(N), 1, length(v), v)
-   mat = reduce_mod_rels(mat, rels(N))
+   mat = reduce_mod_rels(mat, rels(N), 1)
    return submodule_elem{T}(N, mat)
+end
+
+function (N::Submodule{T})(v::Vector{Any}) where T <: RingElement
+   length(v) != 0 && error("Incompatible element")
+   return N(T[])
 end
 
 function (N::Submodule{T})(v::AbstractAlgebra.MatElem{T}) where T <: RingElement
    ncols(v) != ngens(N) && error("Length of vector does not match number of generators")
    nrows(v) != 1 && ("Not a vector in submodule_elem constructor")
-   v = reduce_mod_rels(v, rels(N))
+   v = reduce_mod_rels(v, rels(N), 1)
    return submodule_elem{T}(N, v)
 end
 
@@ -217,7 +222,7 @@ function Submodule(m::AbstractAlgebra.FPModule{T}, gens::Vector{S}) where {T <: 
       # Reduce modulo old relations
       for i = 1:num
          Mi = @view mat[i:i, :]
-         g = reduce_mod_rels(Mi, old_rels)
+         g = reduce_mod_rels(Mi, old_rels, 1)
          for j = 1:ncols(Mi)
             Mi[1, j] = g[1, j]
          end
@@ -275,3 +280,7 @@ function Submodule(m::AbstractAlgebra.FPModule{T}, gens::Vector{S}) where {T <: 
    return M, f
 end
 
+function Submodule(m::AbstractAlgebra.FPModule{T}, gens::Vector{Any}) where T <: RingElement
+   length(gens) != 0 && error("Incompatible module elements")
+   return Submodule(m, elem_type(m)[])
+end

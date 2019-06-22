@@ -175,6 +175,11 @@ function (N::SNFModule{T})(v::Vector{T}) where T <: RingElement
    return snf_module_elem{T}(N, mat)
 end
 
+function (M::SNFModule{T})(a::Vector{Any}) where T <: RingElement
+   length(a) != 0 && error("Incompatible element")
+   return M(T[])
+end
+
 function (N::SNFModule{T})(v::AbstractAlgebra.MatElem{T}) where T <: RingElement
    ncols(v) != ngens(N) && error("Length of vector does not match number of generators")
    nrows(v) != 1 && ("Not a vector in snf_module_elem constructor")
@@ -189,7 +194,7 @@ end
 ###############################################################################
 
 @doc Markdown.doc"""
-    SNFModule(m::AbstractAlgebra.FPModule{T}) where T <: RingElement
+    snf(m::AbstractAlgebra.FPModule{T}) where T <: RingElement
 > Return a pair `M, f` consisting of the invariant factor decomposition $M$ of
 > the module `m` and a module homomorphism (isomorphisms) $f : M \to m$. The
 > module `M` is itself a module which can be manipulated as any other module

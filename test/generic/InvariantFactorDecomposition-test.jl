@@ -1,3 +1,25 @@
+function test_invariant_factors_constructors()
+   print("Generic.InvariantFactorDecomposition.constructors...")
+
+   for R in [ZZ, QQ]
+      for iter = 1:100
+         M = rand_module(R, -10:10)
+
+         I, f = snf(M)
+
+         @test isa(I, Generic.SNFModule)
+      end
+   end
+
+   F = FreeModule(ZZ, 0)
+   D, f = snf(F)
+   m = D([])
+
+   @test isa(m, Generic.snf_module_elem)
+
+   println("PASS")
+end
+
 function test_invariant_factors()
    print("Generic.InvariantFactorDecomposition.invariant_factors...")
 
@@ -15,7 +37,7 @@ function test_invariant_factors()
    println("PASS")
 end
 
-function test_isomorphism()
+function test_invariant_factors_isomorphism()
    print("Generic.InvariantFactorDecomposition.isomorphism...")
 
    for R in [ZZ, QQ]
@@ -34,8 +56,9 @@ function test_isomorphism()
 end
 
 function test_invariant_factor_decomposition()
+   test_invariant_factors_constructors()
    test_invariant_factors()
-   test_isomorphism()
+   test_invariant_factors_isomorphism()
 
    println("")
 end
