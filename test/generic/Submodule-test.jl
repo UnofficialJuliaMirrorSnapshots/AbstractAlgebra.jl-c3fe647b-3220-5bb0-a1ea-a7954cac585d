@@ -20,6 +20,13 @@ function test_submodule_constructors()
 
    @test isa(N([R(2), R(7)]), Generic.submodule_elem)
 
+   F = FreeModule(R, 5)
+   nsubs = rand(0:5)
+   subs = Generic.Submodule{elem_type(R)}[Submodule(F, [rand(F, -10:10)])[1] for i in 1:nsubs]
+   N, h = Submodule(F, subs)
+
+   @test isa(N, Generic.Submodule)
+
    R = QQ
    M = VectorSpace(R, 2)
    m = M([R(1), R(3)])
@@ -32,6 +39,13 @@ function test_submodule_constructors()
    for v in V
       @test parent(f(v)) == M
    end
+
+   M = VectorSpace(R, 5)
+   nsubs = rand(1:5)
+   subs = [Submodule(M, [rand(M, -10:10)])[1] for i in 1:nsubs]
+   N, h = Subspace(M, subs)
+
+   @test isa(N, Generic.Submodule)
 
    F = FreeModule(ZZ, 2)
    S, f = Submodule(F, [])
@@ -140,6 +154,13 @@ function test_submodule_canonical_injection()
          I, g = image(f)
 
          @test I == N
+
+         m = rand(N, -10:10)
+
+         n = f(m)
+         pre = preimage(f, n)
+
+         @test pre == m
       end
    end
 

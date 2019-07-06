@@ -89,74 +89,6 @@ end
 
 ###############################################################################
 #
-#   Unary operators
-#
-###############################################################################
-
-function -(m::free_module_elem)
-   M = parent(m)
-   return M(-m.v)
-end
-
-###############################################################################
-#
-#   Binary operators
-#
-###############################################################################
-
-function +(m1::free_module_elem{T}, m2::free_module_elem{T}) where T <: Union{RingElement, NCRingElem}
-   check_parent(m1, m2)
-   M = parent(m1)
-   return M(m1.v + m2.v)
-end
-
-function -(m1::free_module_elem{T}, m2::free_module_elem{T}) where T <: Union{RingElement, NCRingElem}
-   check_parent(m1, m2)
-   M = parent(m1)
-   return M(m1.v - m2.v)
-end
-
-###############################################################################
-#
-#   Ad hoc binary operators
-#
-###############################################################################
-
-function *(m::free_module_elem{T}, c::T) where T <: Union{RingElem, NCRingElem}
-   parent(c) != base_ring(m) && error("Incompatible scalar")
-   M = parent(m)
-   return M(m.v*c)
-end
-
-function *(c::T, m::free_module_elem{T}) where T <: Union{RingElem, NCRingElem}
-   parent(c) != base_ring(m) && error("Incompatible scalar")
-   M = parent(m)
-   return M(c*m.v)
-end
-
-function *(m::free_module_elem{T}, c::U) where {T <: Union{RingElement, NCRingElem}, U <: Union{Rational, Integer}}
-   M = parent(m)
-   return M(m.v*c)
-end
-
-function *(c::U, m::free_module_elem{T}) where {T <: Union{RingElement, NCRingElem}, U <: Union{Rational, Integer}}
-   M = parent(m)
-   return M(c*m.v)
-end
-
-###############################################################################
-#
-#   Comparison
-#
-###############################################################################
-
-function ==(m1::free_module_elem{T}, m2::free_module_elem{T}) where T <: Union{RingElement, NCRingElem}
-   check_parent(m1, m2)
-   return m1.v == m2.v
-end
-
-###############################################################################
-#
 #   Parent object call overload
 #
 ###############################################################################
@@ -165,7 +97,7 @@ function (M::FreeModule{T})(a::Vector{T}) where T <: Union{RingElement, NCRingEl
    length(a) != rank(M) && error("Number of elements does not equal rank")
    R = base_ring(M)
    v = matrix(R, 1, length(a), a)
-   z = free_module_elem{T}(v)
+   z = free_module_elem{T}(M, v)
    z.parent = M
    return z
 end
@@ -178,7 +110,7 @@ end
 function (M::FreeModule{T})(a::AbstractAlgebra.MatElem{T}) where T <: Union{RingElement, NCRingElem}
    ncols(a) != rank(M) && error("Number of elements does not equal rank")
    nrows(a) != 1 && error("Matrix should have single row")
-   z = free_module_elem{T}(a)
+   z = free_module_elem{T}(M, a)
    z.parent = M
    return z
 end

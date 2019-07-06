@@ -130,7 +130,8 @@ import .Generic: add!, addeq!, addmul!, base_ring, cached,
                  hooklength, identity_map, identity_matrix, image,
                  image_map, image_fn, inflate, integral, interpolate, inv,
                  inv!, invariant_factors,
-                 inverse_fn, invert_rows, invert_rows!,
+                 inverse_fn, inverse_image_fn,
+                 inverse_mat, invert_rows, invert_rows!,
                  invert_cols, invert_cols!,
                  invmod, involves_at_most_one_variable,
                  iscompatible, isconstant, isdegree,
@@ -146,7 +147,7 @@ import .Generic: add!, addeq!, addmul!, base_ring, cached,
                  map1, map2, map_from_func,
                  map_with_preimage_from_func, map_with_retraction,
                  map_with_retraction_from_func,
-                 map_with_section, map_with_section_from_func, matrix,
+                 map_with_section, map_with_section_from_func, mat, matrix,
                  matrix_repr, max_fields, max_precision, minors, minpoly, mod,
                  modulus, monomial, monomial!, monomials,
                  monomial_iszero, monomial_set!, monomial_to_newton!,
@@ -157,7 +158,7 @@ import .Generic: add!, addeq!, addmul!, base_ring, cached,
                  O, one, order, ordering, parent_type, parity, partitionseq,
                  perm, permtype, @perm_str, polcoeff, pol_length,
                  powmod, pow_multinomial, popov, popov_with_transform,
-                 powers, precision,
+                 powers, precision, preimage,
                  preimage_map, primpart, pseudodivrem, pseudo_inv,
                  pseudorem, push_term!, rank, randmat_triu,
                  randmat_with_rank, rand_ordering, rank_profile_popov, remove,
@@ -171,10 +172,11 @@ import .Generic: add!, addeq!, addmul!, base_ring, cached,
                  shift_right, show_minus_one,
                  similarity!, snf, snf_kb,
                  snf_kb_with_transform, snf_with_transform,
-                 solve, solve_rational, solve_triu,
+                 solve, solve_left, solve_rational, solve_triu,
                  sort_terms!, sub, subst, summands, supermodule,
                  swap_cols, swap_cols!, swap_rows,
-                 swap_rows!, sylvester_matrix, symbols, term, terms, total_degree, to_univariate,
+                 swap_rows!, sylvester_matrix, symbols, term,
+                 terms, total_degree, to_univariate,
                  trail, truncate, typed_hcat, typed_hvcat, upscale,
                  valuation, var, var_index, vars, weak_popov,
                  weak_popov_with_transform, zero,
@@ -211,7 +213,8 @@ export add!, addeq!, addmul!, addmul_delayed_reduction!, base_ring, cached,
                  hooklength, identity_map, identity_matrix, image,
                  image_map, image_fn, inflate, integral, interpolate, inv,
                  inv!, invariant_factors,
-                 inverse_fn, invmod, invert_rows,
+                 inverse_fn, inverse_image_fn,
+                 inverse_mat, invmod, invert_rows,
                  invert_rows!, invert_cols, invert_cols!,
                  iscompatible, isconstant, isdegree,
                  isdomain_type, isexact_type, isgen, ishessenberg,
@@ -227,7 +230,7 @@ export add!, addeq!, addmul!, addmul_delayed_reduction!, base_ring, cached,
                  map1, map2, map_from_func, map_with_preimage_from_func,
                  map_with_retraction, map_with_retraction_from_func,
                  map_with_section, map_with_section_from_func,
-                 matrix, matrix_repr, max_fields,
+                 mat, matrix, matrix_repr, max_fields,
                  max_precision, minors, minpoly, mod,
                  modulus, monomial, monomial!, monomials,
                  monomial_iszero, monomial_set!, monomial_to_newton!,
@@ -239,7 +242,8 @@ export add!, addeq!, addmul!, addmul_delayed_reduction!, base_ring, cached,
                  partitionseq, perm, permtype, @perm_str, polcoeff, pol_length,
                  powmod, pow_multinomial,
                  popov, popov_with_transform, powers, ppio, 
-                 precision, preimage_map, primpart, pseudo_inv,
+                 precision, preimage,
+                 preimage_map, primpart, pseudo_inv,
                  pseudodivrem, pseudorem, push_term!,
                  rank, randmat_triu, randmat_with_rank,
                  rand_ordering, rank_profile_popov, reduce!, remove,
@@ -253,10 +257,11 @@ export add!, addeq!, addmul!, addmul_delayed_reduction!, base_ring, cached,
                  set_limit!, setpermstyle, set_prec!, set_val!,
                  shift_left, shift_right, show_minus_one, similarity!, size,
                  snf, snf_kb, snf_kb_with_transform,
-                 snf_with_transform, solve, symbols,
+                 snf_with_transform, solve, solve_left,
                  solve_rational, solve_triu,
                  sort_terms!, sub, subst, summands, supermodule,
-                 swap_rows, swap_rows!, swap_cols, swap_cols!, sylvester_matrix,
+                 swap_rows, swap_rows!, swap_cols, swap_cols!,
+                 sylvester_matrix, symbols,
                  term, terms, to_univariate,
                  total_degree, tr, trail, truncate, typed_hcat, typed_hvcat,
                  upscale, valuation, var, var_index, vars,
@@ -473,8 +478,23 @@ function Submodule(m::Module{T}, gens::Vector{<:ModuleElem{T}}) where T <: RingE
    Generic.Submodule(m, gens)
 end
 
+# Handles empty vector of elements
 function Submodule(m::Module{T}, gens::Vector{Any}) where T <: RingElement
    Generic.Submodule(m, gens)
+end
+
+@doc Markdown.doc"""
+    Submodule(m::Module{T}, subs::Vector{<:Generic.Submodule{T}}) where T <: RingElement
+> Return the submodule `S` of the module `m` generated by the union of the given
+> submodules of $m$, and a map which is the canonical injection from `S` to `m`.
+"""
+function Submodule(m::Module{T}, subs::Vector{<:Generic.Submodule{T}}) where T <: RingElement
+   Generic.Submodule(m, subs)
+end
+
+# Handles empty vector of submodules
+function Submodule(m::Module{T}, subs::Vector{<:Generic.Submodule{U}}) where {T <: RingElement, U <: Any}
+   Generic.Submodule(m, subs)
 end
 
 @doc Markdown.doc"""
@@ -487,8 +507,24 @@ function Subspace(m::Module{T}, gens::Vector{<:ModuleElem{T}}) where T <: FieldE
    Generic.Submodule(m, gens)
 end
 
+# Handles empty vector of elements
 function Subspace(m::Module{T}, gens::Vector{Any}) where T <: FieldElement
    Generic.Submodule(m, gens)
+end
+
+@doc Markdown.doc"""
+    Subspace(m::Module{T}, subs::Vector{<:Generic.Submodule{T}}) where T <: FieldElement
+> Return the subspace `S` of the vector space `m` generated by the union of the
+> given subspaces of $m$, and a map which is the canonical injection from `S`
+> to `m`.
+"""
+function Subspace(m::Module{T}, subs::Vector{<:Generic.Submodule{T}}) where T <: FieldElement
+   Generic.Submodule(m, subs)
+end
+
+# Handles empty vector of subspaces
+function Subspace(m::Module{T}, subs::Vector{<:Generic.Submodule{U}}) where {T <: FieldElement, U <: Any}
+   Generic.Submodule(m, subs)
 end
 
 @doc Markdown.doc"""
@@ -534,6 +570,10 @@ function ModuleHomomorphism(M1::AbstractAlgebra.Module, M2::AbstractAlgebra.Modu
    Generic.ModuleHomomorphism(M1, M2, m)
 end
 
+function ModuleIsomorphism(M1::AbstractAlgebra.Module, M2::AbstractAlgebra.Module, m::MatElem)
+   Generic.ModuleIsomorphism(M1, M2, m)
+end
+
 #add empty functions so that Singular, Nemo and Hecke can import and extend.
 function crt(A...)
   return AbstractAlgebra.crt(A...)
@@ -544,7 +584,7 @@ export PowerSeriesRing, PolynomialRing, SparsePolynomialRing, MatrixSpace,
        YoungTableau, AllParts, SkewDiagram, AllPerms, perm, LaurentSeriesRing,
        LaurentSeriesField, ResidueField, NumberField, PuiseuxSeriesRing,
        PuiseuxSeriesField, FreeModule, VectorSpace, ModuleHomomorphism, Submodule,
-       Subspace, QuotientModule, QuotientSpace, DirectSum
+       Subspace, QuotientModule, QuotientSpace, DirectSum, ModuleIsomorphism
 
 export Generic
 

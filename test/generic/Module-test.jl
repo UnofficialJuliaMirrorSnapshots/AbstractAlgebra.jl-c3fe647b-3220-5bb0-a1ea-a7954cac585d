@@ -1,5 +1,5 @@
 function rand_module(R::AbstractAlgebra.Ring, vals...)
-   rk = rand(1:5)
+   rk = rand(0:5)
    M = FreeModule(R, rk)
    levels = rand(0:3)
    for i = 1:levels
@@ -186,7 +186,7 @@ function test_module_intersection()
 end
 
 function test_module_isisomorphic()
-   print("Generic.Module.IsIsomorphic...")
+   print("Generic.Module.is_isomorphic...")
 
    # Test the first isomorphism theorem
    for R in [ZZ, QQ]
