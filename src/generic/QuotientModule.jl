@@ -4,7 +4,7 @@
 #
 ###############################################################################
 
-export QuotientModule, quotient_module_elem
+export QuotientModule, quotient_module_elem, quo
 
 ###############################################################################
 #
@@ -144,6 +144,26 @@ function (N::QuotientModule{T})(v::AbstractAlgebra.MatElem{T}) where T <: RingEl
    return quotient_module_elem{T}(N, v)
 end
 
+function (M::QuotientModule{T})(a::AbstractAlgebra.FPModuleElem{T}) where T <: RingElement
+   N = parent(a)
+   R = base_ring(N)
+   base_ring(M) != R && error("Incompatible modules")
+   if M === N
+      return a
+   else
+      flag, P = iscompatible(M, N)
+      if flag && P === M
+         while N !== M
+            a = N.map(a)
+            N = parent(a)
+         end
+         return a
+      end
+      Q = supermodule(M)
+      return M.map(Q(a))
+   end
+end
+
 ###############################################################################
 #
 #   QuotientModule constructor
@@ -192,27 +212,27 @@ function compute_combined_rels(m::AbstractAlgebra.FPModule{T}, srels::Vector{S})
    return combined_rels
 end
 
-function QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::Submodule{T}) where T <: RingElement
-   !issubmodule(m, sub) && error("Not a submodule in QuotientModule constructor")
+function quo(m::AbstractAlgebra.FPModule{T}, subm::Submodule{T}) where T <: RingElement
+   !issubmodule(m, subm) && error("Not a submodule in QuotientModule constructor")
    R = base_ring(m)
-   if sub === m # quotient of submodule by itself
-      srels = [v.v for v in gens(sub)]
+   if subm === m # quotient of submodule by itself
+      srels = [v.v for v in gens(subm)]
       combined_rels = compute_combined_rels(m, srels)
       M = QuotientModule{T}(m, combined_rels)
       f = ModuleHomomorphism(m, M,
           matrix(R, ngens(m), 0, []))
    else
-      G = generators(sub)
-      S = sub
+      G = generators(subm)
+      S = subm
       if supermodule(S) !== m
          while supermodule(S) !== m
             G = elem_type(typeof(supermodule(S.m)))[S.m.map(v) for v in G]
             S = supermodule(S)
          end
-         sub, v = Submodule(m, G)
-         G = generators(sub)
+         subm, v = sub(m, G)
+         G = generators(subm)
       end
-      nrels = ngens(sub)
+      nrels = ngens(subm)
       srels = Vector{dense_matrix_type(T)}(undef, nrels)
       for i = 1:nrels
          srels[i] = G[i].v
@@ -228,16 +248,16 @@ function QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::Submodule{T}) where
 end
 
 @doc Markdown.doc"""
-    QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::AbstractAlgebra.FPModule{T}) where T <: RingElement
-> Return the quotient `M` of the module `m` by the module `sub` (which must
+    quo(m::AbstractAlgebra.FPModule{T}, subm::AbstractAlgebra.FPModule{T}) where T <: RingElement
+> Return the quotient `M` of the module `m` by the module `subm` (which must
 > have been (transitively) constructed as a submodule of `m` or be `m` itself)
 > along with the canonical quotient map from `m` to `M`.
 """
-function QuotientModule(m::AbstractAlgebra.FPModule{T}, sub::AbstractAlgebra.FPModule{T}) where T <: RingElement
-   # The only case we need to deal with here is where `m == sub`. In all other
-   # cases, sub will be of type Submodule.
-   m !== sub && error("Not a submodule in QuotientModule constructor")
-   srels = [v.v for v in gens(sub)]
+function quo(m::AbstractAlgebra.FPModule{T}, subm::AbstractAlgebra.FPModule{T}) where T <: RingElement
+   # The only case we need to deal with here is where `m == subm`. In all other
+   # cases, subm will be of type Submodule.
+   m !== subm && error("Not a submodule in QuotientModule constructor")
+   srels = [v.v for v in gens(subm)]
    combined_rels = compute_combined_rels(m, srels)
    M = QuotientModule{T}(m, combined_rels)
    f = ModuleHomomorphism(m, M, matrix(R, ngens(m), 0, []))

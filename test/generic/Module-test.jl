@@ -7,9 +7,9 @@ function rand_module(R::AbstractAlgebra.Ring, vals...)
          break
       end
       G = [rand(M, vals...) for i in 1:rand(1:ngens(M))]
-      S, f = Submodule(M, G)
+      S, f = sub(M, G)
       if rand(1:2) == 1
-         M, f = QuotientModule(M, S)
+         M, f = quo(M, S)
       else
          M = S
       end
@@ -27,7 +27,7 @@ function rand_homomorphism(M::AbstractAlgebra.FPModule{T}, vals...) where T <: R
    f = ModuleHomomorphism(F, M, mat)
    ngens1 = rand(1:3)
    gens1 = [rand(F, vals...) for j in 1:ngens1]
-   S, g = Submodule(F, gens1)
+   S, g = sub(F, gens1)
    hom1 = compose(g, f)
    return S, hom1
 end
@@ -42,13 +42,13 @@ function test_module_manipulation()
 
          ngens1 = rand(1:5)
          gens1 = [rand(M, -10:10) for j in 1:ngens1]
-         M1, f1 = Submodule(M, gens1)
+         M1, f1 = sub(M, gens1)
 
          ngens2 = rand(1:5)
          gens2 = [rand(M1, -10:10) for j in 1:ngens2]
-         M2, f2 = Submodule(M1, gens2)
+         M2, f2 = sub(M1, gens2)
 
-         Q, g = QuotientModule(M, M1)
+         Q, g = quo(M, M1)
 
          @test issubmodule(M, M)
          @test issubmodule(M, M1)
@@ -59,11 +59,11 @@ function test_module_manipulation()
 
          ngens3 = rand(1:5)
          gens3 = [rand(M, -10:10) for j in 1:ngens3]
-         M3, f3 = Submodule(M, gens3)
+         M3, f3 = sub(M, gens3)
 
          ngens4 = rand(1:5)
          gens4 = [rand(M3, -10:10) for j in 1:ngens4]
-         M4, f4 = Submodule(M3, gens4)
+         M4, f4 = sub(M3, gens4)
 
          flag, U = iscompatible(M1, M3)
          @test flag == true && U == M
@@ -102,16 +102,16 @@ function test_module_manipulation()
 
    m = F(BigInt[-10, -5, -1])
    n = F(BigInt[0, -2, -9])
-   S, f = Submodule(F, [m, n])
+   S, f = sub(F, [m, n])
 
-   Q, g = QuotientModule(F, S)
+   Q, g = quo(F, S)
 
    b = Q(BigInt[2, 0, 4])
    c = Q(BigInt[7, 1, -59])
    d = Q(BigInt[4, 0, 23])
-   T, h = Submodule(Q, [b, c, d])
+   T, h = sub(Q, [b, c, d])
 
-   U, k = QuotientModule(Q, T)
+   U, k = quo(Q, T)
 
    println("PASS")
 end
@@ -148,15 +148,15 @@ function test_module_intersection()
 
          ngens1 = rand(1:5)
          gens1 = [rand(M, -10:10) for j in 1:ngens1]
-         M1, f1 = Submodule(M, gens1)
+         M1, f1 = sub(M, gens1)
 
          ngens2 = rand(1:5)
          gens2 = [rand(M, -10:10) for j in 1:ngens2]
-         M2, f2 = Submodule(M, gens2)
+         M2, f2 = sub(M, gens2)
 
          ngens3 = rand(1:5)
          gens3 = [rand(M, -10:10) for j in 1:ngens3]
-         M3, f3 = Submodule(M, gens3)
+         M3, f3 = sub(M, gens3)
 
          I1, g1 = intersect(M1, M2)
          I2, g2 = intersect(I1, M3)
@@ -195,7 +195,7 @@ function test_module_isisomorphic()
          S, f = rand_homomorphism(M, -10:10)
 
          K, g = kernel(f)
-         Q, h = QuotientModule(S, K)
+         Q, h = quo(S, K)
 
          I, k = image(f)
 
@@ -210,7 +210,7 @@ function test_module_isisomorphic()
 
          ngens1 = rand(1:5)
          gens1 = [rand(M, -10:10) for j in 1:ngens1]
-         M1, f1 = Submodule(M, gens1)
+         M1, f1 = sub(M, gens1)
 
          I, g = image(f1)
 
@@ -221,11 +221,81 @@ function test_module_isisomorphic()
    println("PASS")
 end
 
+function test_module_coercions()
+   print("Generic.Module.coercions...")
+
+   # Test the first isomorphism theorem
+   for R in [ZZ, QQ]
+      for iter = 1:20
+         M = rand_module(R, -10:10)
+
+         S2, f2 = sub(M, [rand(M, -10:10)])
+         S1, f1 = sub(S2, [rand(S2, -10:10)])
+
+         SQ1, g1 = sub(M, [rand(M, -10:10)])
+         Q1, h1 = quo(M, SQ1)
+         SQ2, g2 = sub(Q1, [rand(Q1, -10:10)])
+         Q2, h2 = quo(Q1, SQ2)
+         SQ3, g3 = sub(Q2, [rand(Q2, -10:10)])
+         Q3, h3 = quo(Q2, SQ3)
+
+         Sa, k1 = sub(Q2, [rand(Q2, -10:10)])
+         Sb, k2 = sub(Sa, [rand(Sa, -10:10)])
+
+         m1 = rand(M, -10:10)
+         @test parent(M(m1)) === M
+         @test parent(Q1(m1)) === Q1
+         @test parent(Q2(m1)) === Q2
+
+         m2 = rand(Q1, -10:10)
+         @test parent(Q1(m2)) == Q1
+         @test parent(Q2(m2)) == Q2
+
+         m3 = rand(S2, -10:10)
+         @test parent(M(m3)) === M
+         @test parent(Q1(m3)) === Q1
+         @test parent(Q2(m3)) === Q2
+
+         m4 = rand(S1, -10:10)
+         @test parent(M(m4)) === M
+         @test parent(Q1(m4)) === Q1
+         @test parent(Q2(m4)) === Q2
+
+         m5 = rand(Sa, -10:10)
+         @test parent(Sa(m5)) === Sa
+         @test parent(Q2(m5)) === Q2
+         @test parent(Q3(m5)) === Q3
+
+         m6 = rand(Sb, -10:10)
+         @test parent(Sa(m6)) === Sa
+         @test parent(Q2(m6)) === Q2
+         @test parent(Q3(m6)) === Q3
+
+         m7 = rand(S2, -10:10)
+         @test parent(M(m7)) === M
+         @test parent(Q1(m7)) === Q1
+         @test parent(Q2(m7)) === Q2
+
+         m8 = rand(S1, -10:10)
+         @test parent(M(m7)) === M
+         @test parent(Q1(m7)) === Q1
+         @test parent(Q2(m7)) === Q2
+
+         D, v = DirectSum(S1, Sa)
+         m9 = rand(D, -10:10)
+         @test parent(D(m9)) === D
+      end
+   end
+
+   println("PASS")
+end
+
 function test_module()
    test_module_manipulation()
    test_module_elem_getindex()
    test_module_intersection()
    test_module_isisomorphic()
+   test_module_coercions()
 
    println("")
 end

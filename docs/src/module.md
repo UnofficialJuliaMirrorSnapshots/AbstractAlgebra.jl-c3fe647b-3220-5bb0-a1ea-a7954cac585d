@@ -121,6 +121,29 @@ Construct the element of the module $M$ corrsponding to $\sum_i g[i]v[i]$
 where $g[i]$ are the generators of the module $M$. The resulting element
 will lie in the module $M$.
 
+### Coercions
+
+Given a module $M$ and an element $n$ of a module $N$, it is possible to
+coerce $n$ into $M$ using the notation $M(n)$ in certain circumstances.
+
+In particular the element $n$ will be automatically coerced along any canonical
+injection of a submodule map and along any canonical projection of a quotient
+map. There must be a path from $N$ to $M$ along such maps.
+
+**Examples**
+
+```julia
+F = FreeModule(ZZ, 3)
+
+S1, f = sub(F, [rand(F, -10:10)])
+
+S, g = sub(F, [rand(F, -10:10)])
+Q, h = quo(F, S)
+
+m = rand(S1, -10:10)
+n = Q(m)
+```
+
 ### Arithmetic operators
 
 Elements of a module can be added, subtracted or multiplied by an element of
@@ -193,6 +216,11 @@ true
 isisomorphic(::AbstractAlgebra.FPModule{T}, ::AbstractAlgebra.FPModule{T}) where T <: RingElement
 ```
 
+Note that this function relies on the Smith normal form over the base ring of
+the modules being able to be made unique. This is true for Euclidean domains
+for which `divrem` has a fixed choice of quotient and remainder, but it will
+not in general be true for Euclidean rings that are not domains.
+
 **Examples**
 
 ```repl
@@ -205,7 +233,7 @@ julia> m1 = rand(M, -10:10)
 julia> m2 = rand(M, -10:10)
 (-7, -5, -10)
 
-julia> S, f = Submodule(M, [m1, m2])
+julia> S, f = sub(M, [m1, m2])
 (Submodule over Integers with 2 generators and no relations
 , Module homomorphism with
 Domain: Submodule over Integers with 2 generators and no relations
@@ -229,7 +257,7 @@ true
 For modules over a euclidean domain one can take the invariant factor
 decomposition to determine the structure of the module. The invariant factors
 are unique up to multiplication by a unit, and even unique if a 
-`canonical_unit` is available for the ring.
+`canonical_unit` is available for the ring that canonicalises elements.
 
 ```@docs
 snf(::AbstractAlgebra.FPModule{T}) where T <: RingElement
@@ -248,14 +276,14 @@ julia> m1 = rand(M, -10:10)
 julia> m2 = rand(M, -10:10)
 (-6, 2, -8)
 
-julia> S, f = Submodule(M, [m1, m2])
+julia> S, f = sub(M, [m1, m2])
 (Submodule over Integers with 2 generators and no relations
 , Module homomorphism with
 Domain: Submodule over Integers with 2 generators and no relations
 
 Codomain: Free module of rank 3 over Integers)
 
-julia> Q, g = QuotientModule(M, S)
+julia> Q, g = quo(M, S)
 (Quotient module over Integers with 3 generators and relations:
 [3 9 -1], [0 20 -10], Module homomorphism with
 Domain: Free module of rank 3 over Integers
