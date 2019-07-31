@@ -46,6 +46,9 @@ function test_perm_constructors(types)
          @test parent(g) != PermutationGroup(10)
       end
 
+      @test similar(g) isa perm{T}
+      @test similar(g, Int) isa perm{Int}
+
    end
 
    println("PASS")
@@ -217,6 +220,10 @@ function test_perm_binary_ops(types)
          @test AbstractAlgebra.mul!(z, a, b) == a*b
       end
 
+      a_copy = deepcopy(a)
+      @test a_copy^2 == AbstractAlgebra.mul!(a,a,a)
+      @test a_copy == a
+
       G = PermutationGroup(T(10))
       p = G(T[9,5,4,7,3,8,2,10,1,6]) # (1,9)(2,5,3,4,7)(6,8,10)
       @test p^0 == G()
@@ -312,11 +319,13 @@ function test_misc_functions(types)
       @test Generic.permtype(p^5) == [3, 2, 1, 1, 1, 1, 1]
       @test order(p^5) == 6
 
-      @test matrix_repr(a) isa AbstractArray{T,2}
-      @test matrix_repr(a) isa SparseMatrixCSC{T,T}
-      M = matrix_repr(a)
-      for (idx, val) in enumerate(a.d)
-         @test M[idx, val] == 1
+      if VERSION <= v"1.2"
+         @test matrix_repr(a) isa AbstractArray{T,2}
+         @test matrix_repr(a) isa SparseMatrixCSC{T,T}
+         M = matrix_repr(a)
+         for (idx, val) in enumerate(a.d)
+            @test M[idx, val] == 1
+         end
       end
    end
 
