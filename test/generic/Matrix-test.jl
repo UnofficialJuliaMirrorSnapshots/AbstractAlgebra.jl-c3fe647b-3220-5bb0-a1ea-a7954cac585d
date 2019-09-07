@@ -209,7 +209,15 @@ function test_gen_mat_manipulation()
    @test nrows(B) == 3
    @test ncols(B) == 3
 
-   @test deepcopy(A) == A
+   let AA = deepcopy(A)
+      @test AA == A
+      @test AA[1,1] !== A[1,1]
+   end
+
+   let AA = copy(A)
+      @test AA == A
+      @test AA[1,1] === A[1,1]
+   end
 
    C = S([t + 1 R(0) R(1); t^2 R(0) t; R(0) R(0) R(0)])
 
@@ -217,6 +225,28 @@ function test_gen_mat_manipulation()
    @test !iszero_row(C, 1)
    @test iszero_column(C, 2)
    @test !iszero_column(C, 1)
+
+   @test length(A) == length(B) == length(C) == 9
+   @test !any(isempty, (A, B, C))
+
+   @test length(matrix(R, zeros(Int, 2, 3))) == 6
+   @test length(matrix(R, zeros(Int, 3, 2))) == 6
+
+   for n = (matrix(R, zeros(Int, 2, 0)),
+            matrix(R, zeros(Int, 0, 2)))
+      @test length(n) == 0
+      @test isempty(n)
+   end
+
+   M3 = MatrixAlgebra(R, 3)
+   m3 = rand(M3, 0:9, -9:9)
+   @test length(m3) == 9
+   @test !isempty(m3)
+
+   M0 = MatrixAlgebra(R, 0)
+   m0 = rand(M0, 0:9, -9, 9)
+   @test length(m0) == 0
+   @test isempty(m0)
 
    println("PASS")
 end
@@ -1109,7 +1139,7 @@ function test_gen_mat_kernel()
       @test n == 5 - i
       @test rank(N) == n
       @test iszero(M*N)
- 
+
       n, N = left_kernel(M)
 
       @test n == 5 - i
@@ -1846,6 +1876,32 @@ function test_gen_mat_change_base_ring()
    println("PASS")
 end
 
+function test_gen_mat_similar()
+   print("Generic.Mat.similar...")
+   for R = (ZZ, GF(11))
+      M = MatrixSpace(R, rand(0:9), rand(0:9))
+      m = R == ZZ ? rand(M, -10:10) : rand(M)
+      n = similar(m)
+      @test parent(n) == M
+      @test size(n) == (nrows(M), ncols(M))
+      r, c = rand(0:9, 2)
+      n = similar(m, r, c)
+      @test parent(n) == MatrixSpace(R, r, c)
+      @test size(n) == (r, c)
+      for S = [QQ, ZZ, GF(2), GF(5)]
+         n = similar(m, S)
+         @test parent(n) == MatrixSpace(S, size(n)...)
+         @test size(n) == (nrows(M), ncols(M))
+         r, c = rand(0:9, 2)
+         n = similar(m, S, r, c)
+         @test parent(n) == MatrixSpace(S, r, c)
+         @test size(n) == (r, c)
+      end
+   end
+
+   println("PASS")
+end
+
 function test_gen_mat()
    test_gen_mat_constructors()
    test_gen_mat_size()
@@ -1892,6 +1948,7 @@ function test_gen_mat()
    test_gen_mat_minors()
    test_gen_mat_views()
    test_gen_mat_change_base_ring()
+   test_gen_mat_similar()
 
    println("")
 end

@@ -32,7 +32,7 @@ parent(a::AbstractAlgebra.MatAlgElem{T}, cached::Bool = true) where T <: RingEle
     MatAlgebra{T}(a.base_ring, size(a.entries)[1], cached)
 
 function check_parent(a::AbstractAlgebra.MatAlgElem{T}, b::AbstractAlgebra.MatAlgElem{T}, throw::Bool = true) where T <: RingElement
-  fl = (base_ring(a) != base_ring(b) || degree(a) != degree(b)) 
+  fl = (base_ring(a) != base_ring(b) || degree(a) != degree(b))
   fl && throw && error("Incompatible matrix spaces in matrix operation")
   return !fl
 end
@@ -94,45 +94,29 @@ isunit(a::AbstractAlgebra.MatAlgElem{T}) where T <: FieldElement = rank(a) == de
 #
 ###############################################################################
 
-function similar(x::MatAlgElem{T}) where T <: RingElement
-   R = base_ring(x)
-   M = similar(x.entries)
-   for i in 1:size(M, 1)
-      for j in 1:size(M, 2)
-         M[i, j] = zero(R)
-      end
-   end
-   z = MatAlgElem{T}(M)
-   z.base_ring = R
-   return z
-end
 
-function similar(x::MatAlgElem{T}, n::Int) where T <: RingElement
-   R = base_ring(x)
-   M = similar(x.entries, n, n)
-   for i in 1:size(M, 1)
-      for j in 1:size(M, 2)
-         M[i, j] = zero(R)
-      end
-   end
-   z = MatAlgElem{T}(M)
-   z.base_ring = R
-   return z
-end
+@doc Markdown.doc"""
+    similar(x::Generic.MatrixElem, R::Ring=base_ring(x))
+    similar(x::Generic.MatrixElem, R::Ring, r::Int, c::Int)
+    similar(x::Generic.MatrixElem, r::Int, c::Int)
+    similar(x::MatAlgElem, R::Ring, n::Int)
+    similar(x::MatAlgElem, n::Int)
 
-function similar(x::MatAlgElem{T}, m::Int, n::Int) where T <: RingElement
+> Create a matrix over the given ring and dimensions,
+> with defaults based upon the given source matrix `x`.
+"""
+similar(x::MatAlgElem, R::Ring, n::Int) = _similar(x, R, n, n)
+
+similar(x::MatAlgElem, R::Ring=base_ring(x)) = similar(x, R, degree(x))
+
+similar(x::MatAlgElem, n::Int) = similar(x, base_ring(x), n)
+
+function similar(x::MatAlgElem{T}, R::Ring, m::Int, n::Int) where T <: RingElement
    m != n && error("Dimensions don't match in similar")
-   R = base_ring(x)
-   M = similar(x.entries, n, n)
-   for i in 1:size(M, 1)
-      for j in 1:size(M, 2)
-         M[i, j] = zero(R)
-      end
-   end
-   z = MatAlgElem{T}(M)
-   z.base_ring = R
-   return z
+   return similar(x, R, n)
 end
+
+similar(x::MatAlgElem, m::Int, n::Int) = similar(x, base_ring(x), m, n)
 
 ################################################################################
 #
@@ -427,7 +411,7 @@ end
 
 @doc Markdown.doc"""
     minpoly(S::Ring, M::MatAlgElem{T}, charpoly_only::Bool = false) where {T <: RingElement}
-> Returns the minimal polynomial $p$ of the matrix $M$. The polynomial ring $S$
+> Return the minimal polynomial $p$ of the matrix $M$. The polynomial ring $S$
 > of the resulting polynomial must be supplied and the matrix must be square.
 """
 function minpoly(S::Ring, M::MatAlgElem{T}, charpoly_only::Bool = false) where {T <: RingElement}

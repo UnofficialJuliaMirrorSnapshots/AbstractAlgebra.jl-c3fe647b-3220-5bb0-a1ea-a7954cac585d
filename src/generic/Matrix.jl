@@ -28,31 +28,24 @@ export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
 #
 ###############################################################################
 
-function similar(x::Mat{T}) where T <: RingElement
-   R = base_ring(x)
-   M = similar(x.entries)
+function _similar(x::Union{Mat{T}, MatAlgElem{T}}, R::Ring, r::Int, c::Int) where T <: RingElement
+   TT = elem_type(R)
+   M = similar(x.entries, TT, r, c)
    for i in 1:size(M, 1)
       for j in 1:size(M, 2)
          M[i, j] = zero(R)
       end
    end
-   z = MatSpaceElem{T}(M)
+   z = x isa Mat ? MatSpaceElem{TT}(M) : MatAlgElem{TT}(M)
    z.base_ring = R
    return z
 end
 
-function similar(x::Mat{T}, r::Int, c::Int) where T <: RingElement
-   R = base_ring(x)
-   M = similar(x.entries, r, c)
-   for i in 1:size(M, 1)
-      for j in 1:size(M, 2)
-         M[i, j] = zero(R)
-      end
-   end
-   z = MatSpaceElem{T}(M)
-   z.base_ring = R
-   return z
-end
+similar(x::Mat, R::Ring, r::Int, c::Int) = _similar(x, R, r, c)
+
+similar(x::Mat, R::Ring=base_ring(x))= similar(x, R, nrows(x), ncols(x))
+
+similar(x::Mat, r::Int, c::Int) = similar(x, base_ring(x), r, c)
 
 @doc Markdown.doc"""
     eye(x::Generic.MatrixElem)
@@ -186,6 +179,18 @@ nrows(a::MatrixElem) = size(a.entries, 1)
 """
 ncols(a::MatrixElem) = size(a.entries, 2)
 
+@doc Markdown.doc"""
+    length(a::Generic.MatrixElem)
+> Return the number of entries in the given matrix.
+"""
+length(a::MatrixElem) = nrows(a) * ncols(a)
+
+@doc Markdown.doc"""
+    isempty(a::Generic.MatrixElem)
+> Return `true` if `a` does not contain any entry (i.e. `length(a) == 0`), and `false` otherwise.
+"""
+isempty(a::MatrixElem) = (nrows(a) == 0) | (ncols(a) == 0)
+
 Base.@propagate_inbounds function getindex(a::MatrixElem, r::Int, c::Int)
    return a.entries[r, c]
 end
@@ -248,7 +253,7 @@ end
 
 @doc Markdown.doc"""
     iszero_row(M::MatrixElem{T}, i::Int) where T <: RingElement
-> Returns `true` if the $i$-th row of the matrix $M$ is zero.
+> Return `true` if the $i$-th row of the matrix $M$ is zero.
 """
 function iszero_row(M::MatrixElem{T}, i::Int) where T <: RingElement
   for j in 1:ncols(M)
@@ -261,7 +266,7 @@ end
 
 @doc Markdown.doc"""
     iszero_column(M::MatrixElem{T}, i::Int) where T <: RingElement
-> Returns `true` if the $i$-th column of the matrix $M$ is zero.
+> Return `true` if the $i$-th column of the matrix $M$ is zero.
 """
 function iszero_column(M::MatrixElem{T}, i::Int) where T <: RingElement
   for j in 1:nrows(M)
@@ -270,6 +275,16 @@ function iszero_column(M::MatrixElem{T}, i::Int) where T <: RingElement
     end
   end
   return true
+end
+
+function copy(d::MatrixElem)
+   c = similar(d)
+   for i = 1:nrows(d)
+      for j = 1:ncols(d)
+         c[i, j] = d[i, j]
+      end
+   end
+   return c
 end
 
 function deepcopy_internal(d::MatrixElem, dict::IdDict)
@@ -392,6 +407,7 @@ function show(io::IO, a::MatrixElem)
    c = ncols(a)
    if r*c == 0
       print(io, "$r by $c matrix")
+      return
    end
    for i = 1:r
       print(io, "[")
@@ -1295,7 +1311,7 @@ end
 
 @doc Markdown.doc"""
     rref(M::Generic.MatrixElem{T}) where {T <: RingElement}
-> Returns a tuple $(r, d, A)$ consisting of the rank $r$ of $M$ and a
+> Return a tuple $(r, d, A)$ consisting of the rank $r$ of $M$ and a
 > denominator $d$ in the base ring of $M$ and a matrix $A$ such that $A/d$ is
 > the reduced row echelon form of $M$. Note that the denominator is not usually
 > minimal.
@@ -1368,7 +1384,7 @@ end
 
 @doc Markdown.doc"""
     rref(M::Generic.MatrixElem{T}) where {T <: FieldElement}
-> Returns a tuple $(r, A)$ consisting of the rank $r$ of $M$ and a reduced row
+> Return a tuple $(r, A)$ consisting of the rank $r$ of $M$ and a reduced row
 > echelon form $A$ of $M$.
 """
 function rref(M::MatrixElem{T}) where {T <: FieldElement}
@@ -2205,7 +2221,7 @@ end
 @doc Markdown.doc"""
     can_solve_left_reduced_triu(r::AbstractAlgebra.MatElem{T},
                           M::AbstractAlgebra.MatElem{T}) where T <: RingElement
-> Returns a tuple `flag, x` where `flag` is set to true if $xM = r$ has a
+> Return a tuple `flag, x` where `flag` is set to true if $xM = r$ has a
 > solution, where $M$ is an $m\times n$ matrix in (upper triangular) Hermite
 > normal form or reduced row echelon form and $r$ and $x$ are row vectors with
 > $m$ columns. If there is no solution, flag is set to `false` and $x$ is set
@@ -2308,7 +2324,7 @@ end
 
 @doc Markdown.doc"""
     nullspace(M::AbstractAlgebra.MatElem{T}) where {T <: RingElement}
-> Returns a tuple $(\nu, N)$ consisting of the nullity $\nu$ of $M$ and
+> Return a tuple $(\nu, N)$ consisting of the nullity $\nu$ of $M$ and
 > a basis $N$ (consisting of column vectors) for the right nullspace of $M$,
 > i.e. such that $MN$ is the zero matrix. If $M$ is an $m\times n$ matrix
 > $N$ will be an $n\times \nu$ matrix. Note that the nullspace is taken to be
@@ -2357,7 +2373,7 @@ end
 
 @doc Markdown.doc"""
     nullspace(M::AbstractAlgebra.MatElem{T}) where {T <: FieldElement}
-> Returns a tuple $(\nu, N)$ consisting of the nullity $\nu$ of $M$ and
+> Return a tuple $(\nu, N)$ consisting of the nullity $\nu$ of $M$ and
 > a basis $N$ (consisting of column vectors) for the right nullspace of $M$,
 > i.e. such that $MN$ is the zero matrix. If $M$ is an $m\times n$ matrix
 > $N$ will be an $n\times \nu$ matrix.
@@ -2409,7 +2425,7 @@ end
 
 @doc Markdown.doc"""
     left_kernel(a::AbstractAlgebra.MatElem{T}) where T <: RingElement
-> Returns a tuple `n, M` where $M$ is a matrix whose rows generate the kernel
+> Return a tuple `n, M` where $M$ is a matrix whose rows generate the kernel
 > of $M$ and $n$ is the rank of the kernel. The transpose of the output of this
 > function is guaranteed to be in flipped upper triangular format (i.e. upper
 > triangular format if columns and rows are reversed).
@@ -2431,14 +2447,14 @@ function left_kernel(x::AbstractAlgebra.MatElem{T}) where T <: RingElement
    end
 end
 
-function left_kernel(M::AbstractAlgebra.MatElem{T}) where T <: FieldElement 
+function left_kernel(M::AbstractAlgebra.MatElem{T}) where T <: FieldElement
   n, N = nullspace(transpose(M))
   return n, transpose(N)
 end
 
 @doc Markdown.doc"""
     right_kernel(a::AbstractAlgebra.MatElem{T}) where T <: RingElement
-> Returns a tuple `n, M` where $M$ is a matrix whose columns generate the
+> Return a tuple `n, M` where $M$ is a matrix whose columns generate the
 > kernel of $M$ and $n$ is the rank of the kernel.
 """
 function right_kernel(x::AbstractAlgebra.MatElem{T}) where T <: RingElement
@@ -2452,7 +2468,7 @@ end
 
 @doc Markdown.doc"""
     kernel(a::MatElem{T}; side::Symbol = :right) where T <: RingElement
-> Returns a tuple $(n, M)$, where n is the rank of the kernel and $M$ is a
+> Return a tuple $(n, M)$, where n is the rank of the kernel and $M$ is a
 > basis for it. If side is $:right$ or not specified, the right kernel is
 > computed, i.e. the matrix of columns whose span gives the right kernel
 > space. If side is $:left$, the left kernel is computed, i.e. the matrix
@@ -2519,7 +2535,7 @@ end
 
 @doc Markdown.doc"""
     hessenberg(A::Generic.MatrixElem{T}) where {T <: RingElement}
-> Returns the Hessenberg form of $M$, i.e. an upper Hessenberg matrix
+> Return the Hessenberg form of $M$, i.e. an upper Hessenberg matrix
 > which is similar to $M$. The upper Hessenberg form has nonzero entries
 > above and on the diagonal and in the diagonal line immediately below the
 > diagonal.
@@ -2533,7 +2549,7 @@ end
 
 @doc Markdown.doc"""
     ishessenberg(A::Generic.MatrixElem{T}) where {T <: RingElement}
-> Returns `true` if $M$ is in Hessenberg form, otherwise returns `false`.
+> Return `true` if $M$ is in Hessenberg form, otherwise returns `false`.
 """
 function ishessenberg(A::MatrixElem{T}) where {T <: RingElement}
    if !issquare(A)
@@ -2800,7 +2816,7 @@ end
 
 @doc Markdown.doc"""
     charpoly(V::Ring, Y::Generic.MatrixElem{T}) where {T <: RingElement}
-> Returns the characteristic polynomial $p$ of the matrix $M$. The
+> Return the characteristic polynomial $p$ of the matrix $M$. The
 > polynomial ring $R$ of the resulting polynomial must be supplied
 > and the matrix is assumed to be square.
 """
@@ -2881,7 +2897,7 @@ end
 
 @doc Markdown.doc"""
     minpoly(S::Ring, M::MatElem{T}, charpoly_only::Bool = false) where {T <: FieldElement}
-> Returns the minimal polynomial $p$ of the matrix $M$. The polynomial ring $S$
+> Return the minimal polynomial $p$ of the matrix $M$. The polynomial ring $S$
 > of the resulting polynomial must be supplied and the matrix must be square.
 """
 function minpoly(S::Ring, M::MatElem{T}, charpoly_only::Bool = false) where {T <: FieldElement}
@@ -2976,7 +2992,7 @@ end
 
 @doc Markdown.doc"""
     minpoly(S::Ring, M::MatElem{T}, charpoly_only::Bool = false) where {T <: RingElement}
-> Returns the minimal polynomial $p$ of the matrix $M$. The polynomial ring $S$
+> Return the minimal polynomial $p$ of the matrix $M$. The polynomial ring $S$
 > of the resulting polynomial must be supplied and the matrix must be square.
 """
 function minpoly(S::Ring, M::MatElem{T}, charpoly_only::Bool = false) where {T <: RingElement}
@@ -4620,7 +4636,7 @@ function randmat_with_rank(S::Generic.MatSpace{T}, rank::Int, v...) where {T <: 
          M[i, j] = R()
       end
       M[i, i] = rand(R, v...)
-      while iszero(M[i, i]) 
+      while iszero(M[i, i])
          M[i, i] = rand(R, v...)
       end
       for j = i + 1:ncols(M)
