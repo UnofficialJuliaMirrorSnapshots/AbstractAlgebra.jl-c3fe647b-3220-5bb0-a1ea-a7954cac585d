@@ -107,28 +107,28 @@ julia> T = MatrixAlgebra(QQ, 2)
 Matrix Algebra of degree 2 over Rationals
 
 julia> M1 = S(Rational{BigInt}[2 3 1; 1 0 4])
-[2//1 3//1 1//1]
-[1//1 0//1 4//1]
+[2//1  3//1  1//1]
+[1//1  0//1  4//1]
 
 julia> M2 = S(BigInt[2 3 1; 1 0 4])
-[2//1 3//1 1//1]
-[1//1 0//1 4//1]
+[2//1  3//1  1//1]
+[1//1  0//1  4//1]
 
 julia> M3 = S(BigInt[2, 3, 1, 1, 0, 4])
-[2//1 3//1 1//1]
-[1//1 0//1 4//1]
+[2//1  3//1  1//1]
+[1//1  0//1  4//1]
 
 julia> N1 = T(Rational{BigInt}[2 3; 1 0])
-[2//1 3//1]
-[1//1 0//1]
+[2//1  3//1]
+[1//1  0//1]
 
 julia> N2 = T(BigInt[2 3; 1 0])
-[2//1 3//1]
-[1//1 0//1]
+[2//1  3//1]
+[1//1  0//1]
 
 julia> N3 = T(BigInt[2, 3, 1, 1])
-[2//1 3//1]
-[1//1 1//1]
+[2//1  3//1]
+[1//1  1//1]
 
 ```
 
@@ -171,31 +171,31 @@ Construct the $n\times n$ AbstractAlgebra.jl identity matrix over the ring `R`.
 
 ```jldoctest
 julia> M = matrix(ZZ, BigInt[3 1 2; 2 0 1])
-[3 1 2]
-[2 0 1]
+[3  1  2]
+[2  0  1]
 
 julia> N = matrix(ZZ, 3, 2, BigInt[3, 1, 2, 2, 0, 1])
-[3 1]
-[2 2]
-[0 1]
+[3  1]
+[2  2]
+[0  1]
 
 julia> P = zero_matrix(ZZ, 3, 2)
-[0 0]
-[0 0]
-[0 0]
+[0  0]
+[0  0]
+[0  0]
 
 julia> Q = identity_matrix(ZZ, 4)
-[1 0 0 0]
-[0 1 0 0]
-[0 0 1 0]
-[0 0 0 1]
+[1  0  0  0]
+[0  1  0  0]
+[0  0  1  0]
+[0  0  0  1]
 
 julia> R = MatrixAlgebra(ZZ, 2)
 Matrix Algebra of degree 2 over Integers
 
 julia> M = R()
-[0 0]
-[0 0]
+[0  0]
+[0  0]
 ```
 
 ### Views
@@ -274,8 +274,8 @@ in place and not returned from the function.
 
 ```jldoctest
 julia> M = matrix(ZZ, BigInt[2 3 0; 1 1 1])
-[2 3 0]
-[1 1 1]
+[2  3  0]
+[1  1  1]
 
 julia> m = nrows(M)
 2
@@ -310,19 +310,19 @@ julia> S = MatrixSpace(R, 3, 3)
 Matrix Space of 3 rows and 3 columns over Univariate Polynomial Ring in t over Rationals
 
 julia> A = S([t + 1 t R(1); t^2 t t; R(-2) t + 2 t^2 + t + 1])
-[t+1//1 t 1//1]
-[t^2 t t]
-[-2//1 t+2//1 t^2+t+1//1]
+[t+1//1       t        1//1]
+[   t^2       t           t]
+[ -2//1  t+2//1  t^2+t+1//1]
 
 julia> B = transpose(A)
-[t+1//1 t^2 -2//1]
-[t t t+2//1]
-[1//1 t t^2+t+1//1]
+[t+1//1  t^2       -2//1]
+[     t    t      t+2//1]
+[  1//1    t  t^2+t+1//1]
 
 julia> C = A'
-[t+1//1 t^2 -2//1]
-[t t t+2//1]
-[1//1 t t^2+t+1//1]
+[t+1//1  t^2       -2//1]
+[     t    t      t+2//1]
+[  1//1    t  t^2+t+1//1]
 
 ```
 
@@ -348,22 +348,22 @@ and columns.
 
 ```jldoctest
 julia> M = matrix(ZZ, BigInt[1 2 3; 2 3 4; 3 4 5])
-[1 2 3]
-[2 3 4]
-[3 4 5]
+[1  2  3]
+[2  3  4]
+[3  4  5]
 
 julia> N1 = M[1:2, :]
-[1 2 3]
-[2 3 4]
+[1  2  3]
+[2  3  4]
 
 julia> N2 = M[:, :]
-[1 2 3]
-[2 3 4]
-[3 4 5]
+[1  2  3]
+[2  3  4]
+[3  4  5]
 
 julia> N3 = M[2:3, 2:3]
-[3 4]
-[4 5]
+[3  4]
+[4  5]
 
 ```
 
@@ -380,14 +380,14 @@ matrices are assumed to be mutable in AbstractAlgebra.jl).
 
 ```jldoctest
 julia> M = identity_matrix(ZZ, 3)
-[1 0 0]
-[0 1 0]
-[0 0 1]
+[1  0  0]
+[0  1  0]
+[0  0  1]
 
 julia> swap_rows!(M, 1, 2)
-[0 1 0]
-[1 0 0]
-[0 0 1]
+[0  1  0]
+[1  0  0]
+[0  0  1]
 
 ```
 
@@ -413,74 +413,106 @@ columns of $M$ and $N$ are the same.
 
 ```jldoctest
 julia> M = matrix(ZZ, BigInt[1 2 3; 2 3 4; 3 4 5])
-[1 2 3]
-[2 3 4]
-[3 4 5]
+[1  2  3]
+[2  3  4]
+[3  4  5]
 
 julia> N = matrix(ZZ, BigInt[1 0 1; 0 1 0; 1 0 1])
-[1 0 1]
-[0 1 0]
-[1 0 1]
+[1  0  1]
+[0  1  0]
+[1  0  1]
 
 julia> P = hcat(M, N)
-[1 2 3 1 0 1]
-[2 3 4 0 1 0]
-[3 4 5 1 0 1]
+[1  2  3  1  0  1]
+[2  3  4  0  1  0]
+[3  4  5  1  0  1]
 
 julia> Q = vcat(M, N)
-[1 2 3]
-[2 3 4]
-[3 4 5]
-[1 0 1]
-[0 1 0]
-[1 0 1]
+[1  2  3]
+[2  3  4]
+[3  4  5]
+[1  0  1]
+[0  1  0]
+[1  0  1]
 
 ```
 
-### Optional similar
+### Optional similar and zero
 
 The following functions are available for matrices in both matrix algebras and matrix
-spaces.
+spaces. Both `similar` and `zero` construct new matrices, with the same methods, but
+the entries are either undefined with `similar` or zero-initialized with `zero`.
 
 ```julia
 similar(x::MyMat{T}, R::Ring=base_ring(x)) where T <: AbstractAlgebra.RingElem
+zero(x::MyMat{T}, R::Ring=base_ring(x)) where T <: AbstractAlgebra.RingElem
 ```
 
-Construct the zero matrix with the same dimensions as the given matrix, and the
+Construct the matrix with the same dimensions as the given matrix, and the
 same base ring unless explicitly specified.
 
 ```julia
 similar(x::MyMat{T}, R::Ring, r::Int, c::Int) where T <: AbstractAlgebra.RingElem
 similar(x::MyMat{T}, r::Int, c::Int) where T <: AbstractAlgebra.RingElem
+zero(x::MyMat{T}, R::Ring, r::Int, c::Int) where T <: AbstractAlgebra.RingElem
+zero(x::MyMat{T}, r::Int, c::Int) where T <: AbstractAlgebra.RingElem
 ```
 
-Construct the $r\times c$ zero matrix with `R` as base ring (which defaults to the
+Construct the $r\times c$ matrix with `R` as base ring (which defaults to the
 base ring of the the given matrix).
 If $x$ belongs to a matrix algebra and $r \neq c$, an exception is raised, and it's
 also possible to specify only one `Int` as the order (e.g. `similar(x, n)`).
 
 Custom matrices may choose which specific matrix type is best-suited to return for the
-given ring and dimensionality. If they do not specialize this method, the default is a
+given ring and dimensionality. If they do not specialize these functions, the default is a
 `Generic.MatSpaceElem` matrix, or `Generic.MatAlgElem` for matrix algebras.
+The default implementation of `zero` calls out to `similar`, so it's generally
+sufficient to specialize only `similar`.
+
+```julia
+Base.isassigned(M::MyMat, i, j)
+```
+
+Test whether the given matrix has a value associated with indices `i` and `j`.
+It is recommended to overload this method for custom matrices.
 
 **Examples**
 
 ```jldoctest
 julia> M = matrix(ZZ, BigInt[3 1 2; 2 0 1])
-[3 1 2]
-[2 0 1]
+[3  1  2]
+[2  0  1]
+
+julia> isassigned(M, 1, 2)
+true
+
+julia> isassigned(M, 4, 4)
+false
 
 julia> A = similar(M)
-[0 0 0]
-[0 0 0]
+[#undef  #undef  #undef]
+[#undef  #undef  #undef]
 
-julia> B = similar(M, 4, 5)
-[0 0 0 0 0]
-[0 0 0 0 0]
-[0 0 0 0 0]
-[0 0 0 0 0]
+julia> isassigned(A, 1, 2)
+false
 
-julia> C = similar(M, QQ, 2, 2)
-[0//1 0//1]
-[0//1 0//1]
+julia> B = zero(M)
+[0  0  0]
+[0  0  0]
+
+julia> C = similar(M, 4, 5)
+[#undef  #undef  #undef  #undef  #undef]
+[#undef  #undef  #undef  #undef  #undef]
+[#undef  #undef  #undef  #undef  #undef]
+[#undef  #undef  #undef  #undef  #undef]
+
+julia> base_ring(B)
+Integers
+
+julia> D = zero(M, QQ, 2, 2)
+[0//1  0//1]
+[0//1  0//1]
+
+julia> base_ring(D)
+Rationals
 ```

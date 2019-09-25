@@ -1473,26 +1473,152 @@ function test_gen_mat_row_col_swapping()
    @test a == matrix(R, [2 1; 6 5; 4 3])
 
    a = matrix(R, [1 2; 3 4])
-   @test invert_rows(a) == matrix(R, [3 4; 1 2])
-   invert_rows!(a)
+   @test reverse_rows(a) == matrix(R, [3 4; 1 2])
+   reverse_rows!(a)
    @test a == matrix(R, [3 4; 1 2])
 
    a = matrix(R, [1 2; 3 4])
-   @test invert_cols(a) == matrix(R, [2 1; 4 3])
-   invert_cols!(a)
+   @test reverse_cols(a) == matrix(R, [2 1; 4 3])
+   reverse_cols!(a)
    @test a == matrix(R, [2 1; 4 3])
 
    a = matrix(R, [1 2 3; 3 4 5; 5 6 7])
 
-   @test invert_rows(a) == matrix(R, [5 6 7; 3 4 5; 1 2 3])
-   invert_rows!(a)
+   @test reverse_rows(a) == matrix(R, [5 6 7; 3 4 5; 1 2 3])
+   reverse_rows!(a)
    @test a == matrix(R, [5 6 7; 3 4 5; 1 2 3])
 
    a = matrix(R, [1 2 3; 3 4 5; 5 6 7])
-   @test invert_cols(a) == matrix(R, [3 2 1; 5 4 3; 7 6 5])
-   invert_cols!(a)
+   @test reverse_cols(a) == matrix(R, [3 2 1; 5 4 3; 7 6 5])
+   reverse_cols!(a)
    @test a == matrix(R, [3 2 1; 5 4 3; 7 6 5])
 
+   println("PASS")
+end
+
+function test_gen_mat_elem_op()
+   print("Generic.Mat.gen_mat_elem_op...")
+
+   R, x = PolynomialRing(ZZ, "x")
+   for i in 1:10
+      r = rand(1:50)
+      c = rand(1:50)
+      S = MatrixSpace(R, r, c)
+      M = rand(S, 0:3, -100:100)
+      c1, c2 = rand(1:c), rand(1:c)
+      s = rand(-100:100)
+      r1 = rand(1:r)
+      r2 = rand(r1:r)
+
+      # add column
+
+      N = add_column(M, s, c1, c2, r1:r2)
+      for ci in 1:c
+         if ci == c2
+            @test all(N[k, c2] == M[k, c2] + s * M[k, c1] for k in r1:r2)
+            @test all(N[k, c2] == M[k, c2] for k in 1:r if !(k in r1:r2))
+         else
+            @test all(N[k, ci] == M[k, ci] for k in 1:r)
+         end
+      end
+
+      MM = deepcopy(M)
+      add_column!(MM, s, c1, c2, r1:r2)
+      for ci in 1:c
+         if ci == c2
+            @test all(MM[k, c2] == M[k, c2] + s * M[k, c1] for k in r1:r2)
+            @test all(MM[k, c2] == M[k, c2] for k in 1:r if !(k in r1:r2))
+         else
+            @test all(MM[k, ci] == M[k, ci] for k in 1:r)
+         end
+      end
+
+      if c1 != c2
+         @test add_column(add_column(M, s, c1, c2), -s, c1, c2) == M
+      end
+
+      # multiply column
+
+      N = multiply_column(M, s, c1, r1:r2)
+      for ci in 1:c
+         if ci == c1
+            @test all(N[k, c1] == s * M[k, c1] for k in r1:r2)
+            @test all(N[k, c1] == M[k, c1] for k in 1:r if !(k in r1:r2))
+         else
+            @test all(N[k, ci] == M[k, ci] for k in 1:r)
+         end
+      end
+
+      MM = deepcopy(M)
+      multiply_column!(MM, s, c1, r1:r2)
+      for ci in 1:c
+         if ci == c1
+            @test all(MM[k, c1] == s * M[k, c1] for k in r1:r2)
+            @test all(MM[k, c1] == M[k, c1] for k in 1:r if !(k in r1:r2))
+         else
+            @test all(MM[k, ci] == M[k, ci] for k in 1:r)
+         end
+      end
+
+      @test multiply_column(multiply_column(M, -one(R), c1), -one(R), c1) == M
+
+      # add row
+
+      r1, r2 = rand(1:r), rand(1:r)
+      s = rand(-100:100)
+      c1 = rand(1:c)
+      c2 = rand(c1:c)
+
+      N = add_row(M, s, r1, r2, c1:c2)
+      for ci in 1:r
+         if ci == r2
+            @test all(N[r2, k] == M[r2, k] + s * M[r1, k] for k in c1:c2)
+            @test all(N[r2, k] == M[r2, k] for k in 1:c if !(k in c1:c2))
+         else
+            @test all(N[ci, k] == M[ci, k] for k in 1:c)
+         end
+      end
+
+      MM = deepcopy(M)
+      add_row!(MM, s, r1, r2, c1:c2)
+      for ci in 1:r
+         if ci == r2
+            @test all(MM[r2, k] == M[r2, k] + s * M[r1, k] for k in c1:c2)
+            @test all(MM[r2, k] == M[r2, k] for k in 1:c if !(k in c1:c2))
+         else
+            @test all(MM[ci, k] == M[ci, k] for k in 1:c)
+         end
+      end
+
+      if r1 != r2
+         @test add_row(add_row(M, s, r1, r2), -s, r1, r2) == M
+      end
+
+      # multiply row
+
+      N = multiply_row(M, s, r1, c1:c2)
+      for ci in 1:r
+         if ci == r1
+            @test all(N[r1, k] == s * M[r1, k] for k in c1:c2)
+            @test all(N[r1, k] == M[r1, k] for k in 1:c if !(k in c1:c2))
+         else
+            @test all(N[ci, k] == M[ci, k] for k in 1:c)
+         end
+      end
+
+      MM = deepcopy(M)
+      multiply_row!(MM, s, r1, c1:c2)
+      for ci in 1:r
+         if ci == r1
+            @test all(MM[r1, k] == s * M[r1, k] for k in c1:c2)
+            @test all(MM[r1, k] == M[r1, k] for k in 1:c if !(k in c1:c2))
+         else
+            @test all(MM[ci, k] == M[ci, k] for k in 1:c)
+         end
+      end
+
+      @test multiply_row(multiply_row(M, -one(R), r1), -one(R), r1) == M
+   end
    println("PASS")
 end
 
@@ -1515,6 +1641,34 @@ function test_gen_mat_concat()
       @test vcat(transpose(M1), transpose(M2)) == transpose(hcat(M1, M2))
    end
 
+   A = matrix(R, 2, 2, [1, 2, 3, 4])
+   B = matrix(R, 4, 2, [1, 2, 3, 4, 0, 1, 0, 1])
+   C = matrix(R, 4, 1, [0, 1, 0, 2])
+   D = matrix(R, 2, 3, [1, 2, 3, 4, 5, 6])
+
+   @test hcat(B, C) == matrix(R, [1 2 0;
+                                  3 4 1;
+                                  0 1 0;
+                                  0 1 2;])
+   @test hcat(B, C) == [B C]
+   @test hcat([B, C]) == [B C]
+
+   @test vcat(A, B) == matrix(R, [1 2;
+                                  3 4;
+                                  1 2;
+                                  3 4;
+                                  0 1;
+                                  0 1;])
+
+   @test vcat(A, B) == [A; B]
+   @test vcat(A, B) == vcat([A, B])
+
+   @test [A D; B B C] == matrix(R, [1 2 1 2 3;
+                                    3 4 4 5 6;
+                                    1 2 1 2 0;
+                                    3 4 3 4 1;
+                                    0 1 0 1 0;
+                                    0 1 0 1 2;])
    println("PASS")
 end
 
@@ -1876,26 +2030,33 @@ function test_gen_mat_change_base_ring()
    println("PASS")
 end
 
-function test_gen_mat_similar()
-   print("Generic.Mat.similar...")
-   for R = (ZZ, GF(11))
-      M = MatrixSpace(R, rand(0:9), rand(0:9))
-      m = R == ZZ ? rand(M, -10:10) : rand(M)
-      n = similar(m)
-      @test parent(n) == M
-      @test size(n) == (nrows(M), ncols(M))
-      r, c = rand(0:9, 2)
-      n = similar(m, r, c)
-      @test parent(n) == MatrixSpace(R, r, c)
-      @test size(n) == (r, c)
-      for S = [QQ, ZZ, GF(2), GF(5)]
-         n = similar(m, S)
-         @test parent(n) == MatrixSpace(S, size(n)...)
+function test_gen_mat_similar_zero()
+   print("Generic.Mat.similar/zero...")
+   for sim_zero in (similar, zero)
+      test_zero = sim_zero === zero
+      for R = (ZZ, GF(11))
+         M = MatrixSpace(R, rand(0:9), rand(0:9))
+         m = R == ZZ ? rand(M, -10:10) : rand(M)
+         n = sim_zero(m)
+         @test !test_zero || iszero(n)
+         @test parent(n) == M
          @test size(n) == (nrows(M), ncols(M))
          r, c = rand(0:9, 2)
-         n = similar(m, S, r, c)
-         @test parent(n) == MatrixSpace(S, r, c)
+         n = sim_zero(m, r, c)
+         @test !test_zero || iszero(n)
+         @test parent(n) == MatrixSpace(R, r, c)
          @test size(n) == (r, c)
+         for S = [QQ, ZZ, GF(2), GF(5)]
+            n = sim_zero(m, S)
+            @test !test_zero || iszero(n)
+            @test parent(n) == MatrixSpace(S, size(n)...)
+            @test size(n) == (nrows(M), ncols(M))
+            r, c = rand(0:9, 2)
+            n = sim_zero(m, S, r, c)
+            @test !test_zero || iszero(n)
+            @test parent(n) == MatrixSpace(S, r, c)
+            @test size(n) == (r, c)
+         end
       end
    end
 
@@ -1912,7 +2073,8 @@ function test_gen_mat_show()
    @test string(S([1 2 3; 4 5 6; 7 8 9])) ==
       "[1//1  2//1  3//1]\n[4//1  5//1  6//1]\n[7//1  8//1  9//1]"
    @test string(MatrixAlgebra(QQ, 0)()) == "0 by 0 matrix"
-
+   @test string(similar(matrix(ZZ, [3 1 2; 2 0 1]))) ==
+      "[#undef  #undef  #undef]\n[#undef  #undef  #undef]"
    println("PASS")
 end
 
@@ -1951,6 +2113,7 @@ function test_gen_mat()
    test_gen_mat_charpoly()
    test_gen_mat_minpoly()
    test_gen_mat_row_col_swapping()
+   test_gen_mat_elem_op()
    test_gen_mat_concat()
    test_gen_mat_hnf_minors()
    test_gen_mat_hnf_kb()
@@ -1962,7 +2125,7 @@ function test_gen_mat()
    test_gen_mat_minors()
    test_gen_mat_views()
    test_gen_mat_change_base_ring()
-   test_gen_mat_similar()
+   test_gen_mat_similar_zero()
 
    println("")
 end

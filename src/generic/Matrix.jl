@@ -6,8 +6,8 @@
 
 export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
        charpoly_danilevsky_ff!, hessenberg!, hessenberg, ishessenberg,
-       identity_matrix, charpoly_hessenberg!, invert_cols, invert_cols!,
-       invert_rows, invert_rows!, matrix, minpoly, typed_hvcat, typed_hcat,
+       identity_matrix, charpoly_hessenberg!, reverse_cols, reverse_cols!,
+       reverse_rows, reverse_rows!, matrix, minpoly, typed_hvcat, typed_hcat,
        powers, randmat_triu, randmat_with_rank, similarity!, solve,
        solve_rational, hnf, hnf_kb, hnf_kb_with_transform, hnf_with_transform,
        issquare, snf, snf_with_transform, weak_popov,
@@ -20,7 +20,8 @@ export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
        snf_kb_with_transform, find_pivot_popov, inv!, zero_matrix,
        kronecker_product, minors, tr, lu, lu!, pseudo_inv, dense_matrix_type,
        kernel, iszero_row, iszero_column, left_kernel, right_kernel, ishnf,
-       solve_left
+       solve_left, add_column, add_column!, add_row, add_row!, multiply_column,
+       multiply_column!, multiply_row, multiply_row!
 
 ###############################################################################
 #
@@ -31,11 +32,6 @@ export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
 function _similar(x::MatrixElem{T}, R::Ring, r::Int, c::Int) where T <: RingElement
    TT = elem_type(R)
    M = Matrix{TT}(undef, (r, c))
-   for i in 1:size(M, 1)
-      for j in 1:size(M, 2)
-         M[i, j] = zero(R)
-      end
-   end
    z = x isa AbstractAlgebra.MatElem ? MatSpaceElem{TT}(M) : MatAlgElem{TT}(M)
    z.base_ring = R
    return z
@@ -52,7 +48,7 @@ similar(x::AbstractAlgebra.MatElem, r::Int, c::Int) = similar(x, base_ring(x), r
 > Return the identity matrix with the same shape as $x$.
 """
 function eye(x::MatrixElem)
-  z = similar(x)
+  z = zero(x)
   for i in 1:nrows(x)
     z[i, i] = one(base_ring(x))
   end
@@ -64,11 +60,11 @@ end
 > Return the $d$-by-$d$ identity matrix with the same base ring as $x$.
 """
 function eye(x::MatrixElem, d::Int)
-  z = similar(x, d, d)
-  for i in 1:nrows(z)
-    z[i, i] = one(base_ring(x))
-  end
-  return z
+   z = zero(x, d, d)
+   for i in 1:nrows(z)
+      z[i, i] = one(base_ring(x))
+   end
+   return z
 end
 
 ###############################################################################
@@ -200,11 +196,38 @@ Base.@propagate_inbounds function setindex!(a::MatrixElem, d::T, r::Int,
     a.entries[r, c] = base_ring(a)(d)
 end
 
+Base.isassigned(a::Union{Mat,MatAlgElem}, i, j) = isassigned(a.entries, i, j)
+
+function Base.isassigned(a::MatrixElem, i, j)
+    try
+        a[i, j]
+        true
+    catch e
+        if isa(e, BoundsError) || isa(e, UndefRefError)
+            return false
+        else
+            rethrow()
+        end
+    end
+end
+
 @doc Markdown.doc"""
     zero(a::AbstractAlgebra.MatSpace)
 > Construct the zero matrix in the given matrix space.
 """
 zero(a::AbstractAlgebra.MatSpace) = a()
+
+zero(x::MatrixElem, R::Ring=base_ring(x)) = zero!(similar(x, R))
+zero(x::MatrixElem, R::Ring, r::Int, c::Int) = zero!(similar(x, R, r, c))
+zero(x::MatrixElem, r::Int, c::Int) = zero!(similar(x, r, c))
+
+function zero!(x::MatrixElem)
+   R = base_ring(x)
+   for i=1:nrows(x), j=1:ncols(x)
+      x[i, j] = zero(R)
+   end
+   x
+end
 
 @doc Markdown.doc"""
     one(a::AbstractAlgebra.MatSpace)
@@ -356,11 +379,19 @@ end
 
 getindex(x::AbstractAlgebra.MatElem, r::UnitRange{Int}, c::UnitRange{Int}) = sub(x, r, c)
 
-getindex(x::AbstractAlgebra.MatElem, r::UnitRange, ::Colon) = sub(x, r, 1:ncols(x))
+getindex(x::AbstractAlgebra.MatElem, r::UnitRange{Int}, ::Colon) = sub(x, r, 1:ncols(x))
 
 getindex(x::AbstractAlgebra.MatElem, ::Colon, c::UnitRange{Int}) = sub(x, 1:nrows(x), c)
 
 getindex(x::AbstractAlgebra.MatElem, ::Colon, ::Colon) = sub(x, 1:nrows(x), 1:ncols(x))
+
+getindex(x::AbstractAlgebra.MatElem, r::Int, c::UnitRange{Int}) = sub(x, r:r, c)
+
+getindex(x::AbstractAlgebra.MatElem, r::UnitRange{Int}, c::Int) = sub(x, r, c:c)
+
+getindex(x::AbstractAlgebra.MatElem, r::Int, ::Colon) = sub(x, r:r, 1:ncols(x))
+
+getindex(x::AbstractAlgebra.MatElem, ::Colon, c::Int) = sub(x, 1:nrows(x), c:c)
 
 function Base.view(M::Mat{T}, rows::UnitRange{Int}, cols::UnitRange{Int}) where T <: RingElement
    return MatSpaceView(view(M.entries, rows, cols), M.base_ring)
@@ -408,7 +439,8 @@ function show(io::IO, a::MatrixElem)
    isempty(a) && return print(io, "$r by $c matrix")
 
    # preprint each element to know the widths so as to align the columns
-   strings = String[sprint(print, a[i,j], context = :compact => true) for i=1:r, j=1:c]
+   strings = String[sprint(print, isassigned(a, i, j) ? a[i, j] : Base.undef_ref_str,
+                           context = :compact => true) for i=1:r, j=1:c]
    maxs = maximum(length, strings, dims=1)
 
    for i = 1:r
@@ -2091,33 +2123,33 @@ end
 > no such matrix exists, an exception is raised.
 """
 function solve_left(a::AbstractAlgebra.MatElem{S}, b::AbstractAlgebra.MatElem{S}) where S <: RingElement
-  @assert ncols(a) == ncols(b)
-  H, T = hnf_with_transform(a)
-  b = deepcopy(b)
-  z = similar(a, nrows(b), nrows(a))
-  l = min(ncols(a), nrows(a))
-  t = base_ring(a)()
-  for i = 1:nrows(b)
-    for j = 1:l
-      k = 1
-      while k <= ncols(H) && iszero(H[j, k])
-        k += 1
+   @assert ncols(a) == ncols(b)
+   H, T = hnf_with_transform(a)
+   b = deepcopy(b)
+   z = zero(a, nrows(b), nrows(a))
+   l = min(ncols(a), nrows(a))
+   t = base_ring(a)()
+   for i = 1:nrows(b)
+      for j = 1:l
+         k = 1
+         while k <= ncols(H) && iszero(H[j, k])
+            k += 1
+         end
+         if k > ncols(H)
+            continue
+         end
+         q, r = AbstractAlgebra.divrem(b[i, k], H[j, k])
+         r != 0 && error("Unable to solve linear system")
+         z[i, j] = q
+         q = -q
+         for h = k:ncols(H)
+            t = mul!(t, q, H[j, h])
+            b[i, h] = addeq!(b[i, h], t)
+         end
       end
-      if k > ncols(H)
-        continue
-      end
-      q, r = AbstractAlgebra.divrem(b[i, k], H[j, k])
-      r != 0 && error("Unable to solve linear system")
-      z[i, j] = q
-      q = -q
-      for h = k:ncols(H)
-        t = mul!(t, q, H[j, h])
-        b[i, h] = addeq!(b[i, h], t)
-      end
-    end
-  end
-  b != 0 && error("Unable to solve linear system")
-  return z*T
+   end
+   b != 0 && error("Unable to solve linear system")
+   return z*T
 end
 
 # Find the pivot columns of an rref matrix
@@ -2184,7 +2216,7 @@ function solve_triu(U::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}
    n = nrows(U)
    m = ncols(b)
    R = base_ring(U)
-   X = similar(b)
+   X = zero(b)
    Tinv = Array{elem_type(R)}(undef, n)
    tmp = Array{elem_type(R)}(undef, n)
    if unit == false
@@ -2341,7 +2373,7 @@ function nullspace(M::AbstractAlgebra.MatElem{T}) where {T <: RingElement}
    rank, d, A = rref(M)
    nullity = n - rank
    R = base_ring(M)
-   U = similar(M, n, nullity)
+   U = zero(M, n, nullity)
    if rank == 0
       for i = 1:nullity
          U[i, i] = R(1)
@@ -2388,7 +2420,7 @@ function nullspace(M::AbstractAlgebra.MatElem{T}) where {T <: FieldElement}
    rank, A = rref(M)
    nullity = n - rank
    R = base_ring(M)
-   X = similar(M, n, nullity)
+   X = zero(M, n, nullity)
    if rank == 0
       for i = 1:nullity
          X[i, i] = R(1)
@@ -2924,7 +2956,7 @@ function minpoly(S::Ring, M::MatElem{T}, charpoly_only::Bool = false) where {T <
    first_poly = true
    while r2 <= n
       P1 = [0 for i in 1:2n + 1]
-      v = similar(M, n, 1)
+      v = zero(M, n, 1)
       for j = 1:n
          B[r2, j] = v[j, 1]
          A[1, j] = R()
@@ -3022,7 +3054,7 @@ function minpoly(S::Ring, M::MatElem{T}, charpoly_only::Bool = false) where {T <
    first_poly = true
    while r2 <= n
       P1 = [0 for i in 1:2n + 1]
-      v = similar(M, n, 1)
+      v = zero(M, n, 1)
       for j = 1:n
          B[r2, j] = v[j, 1]
          A[1, j] = R()
@@ -4500,11 +4532,11 @@ function swap_cols!(a::MatrixElem, i::Int, j::Int)
 end
 
 @doc Markdown.doc"""
-    invert_rows!(a::MatrixElem)
+    reverse_rows!(a::MatrixElem)
 > Swap the $i$th and $r - i$th row of $a$ for $1 \leq i \leq r/2$,
 > where $r$ is the number of rows of $a$.
 """
-function invert_rows!(a::MatrixElem)
+function reverse_rows!(a::MatrixElem)
    k = AbstractAlgebra.div(nrows(a), 2)
    for i in 1:k
       swap_rows!(a, i, nrows(a) - i + 1)
@@ -4513,22 +4545,22 @@ function invert_rows!(a::MatrixElem)
 end
 
 @doc Markdown.doc"""
-    invert_rows(a::MatrixElem)
+    reverse_rows(a::MatrixElem)
 > Return a matrix $b$ with the entries of $a$, where the $i$th and $r - i$th
 > row is swapped for $1 \leq i \leq r/2$. Here $r$ is the number of rows of
 > $a$.
 """
-function invert_rows(a::MatrixElem)
+function reverse_rows(a::MatrixElem)
    b = deepcopy(a)
-   return invert_rows!(b)
+   return reverse_rows!(b)
 end
 
 @doc Markdown.doc"""
-    invert_cols!(a::MatrixElem)
+    reverse_cols!(a::MatrixElem)
 > Swap the $i$th and $r - i$th column of $a$ for $1 \leq i \leq c/2$,
 > where $c$ is the number of columns of $a$.
 """
-function invert_cols!(a::MatrixElem)
+function reverse_cols!(a::MatrixElem)
    k = AbstractAlgebra.div(ncols(a), 2)
    for i in 1:k
       swap_cols!(a, i, ncols(a) - i + 1)
@@ -4537,14 +4569,151 @@ function invert_cols!(a::MatrixElem)
 end
 
 @doc Markdown.doc"""
-    invert_cols(a::MatrixElem)
+    reverse_cols(a::MatrixElem)
 > Return a matrix $b$ with the entries of $a$, where the $i$th and $r - i$th
 > column is swapped for $1 \leq i \leq c/2$. Here $c$ is the number of columns
 > of$a$.
 """
-function invert_cols(a::MatrixElem)
+function reverse_cols(a::MatrixElem)
    b = deepcopy(a)
-   return invert_cols!(b)
+   return reverse_cols!(b)
+end
+
+################################################################################
+#
+#  Elementary row/column transformations
+#
+################################################################################
+
+@doc Markdown.doc"""
+    add_column!(a::MatrixElem, s::RingElement, i::Int, j::Int, rng = 1:nrows(a))
+> Add $s$ times the $i$-th row to the $j$-th row of $a$.
+>
+> By default, the transformation is applied to all rows of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function add_column!(a::MatrixElem, s::RingElement, i::Int, j::Int, rng = 1:nrows(a))
+   c = base_ring(a)(s)
+   nc = ncols(a)
+   !_checkbounds(nc, i) && error("Column index ($i) must be between 1 and $nc")
+   !_checkbounds(nc, j) && error("Column index ($j) must be between 1 and $nc")
+   temp = base_ring(a)()
+   for r in rng
+      a[r, j] = addmul!(a[r, j], c, a[r, i], temp)
+   end
+   return a
+end
+
+@doc Markdown.doc"""
+    add_column(a::MatrixElem, s::RingElement, i::Int, j::Int; rng = 1:nrows(a))
+> Create a copy of $a$ and add $s$ times the $i$-th row to the $j$-th row of $a$.
+>
+> By default, the transformation is applied to all rows of $a$. This can be
+> changed using the optional `rng` argument.
+
+"""
+function add_column(a::MatrixElem, s::RingElement, i::Int, j::Int, rng = 1:nrows(a))
+   b = deepcopy(a)
+   return add_column!(b, s, i, j, rng)
+end
+
+@doc Markdown.doc"""
+    add_row!(a::MatrixElem, s::RingElement, i::Int, j::Int, rng = 1:nrows(a))
+> Add $s$ times the $i$-th row to the $j$-th row of $a$.
+>
+> By default, the transformation is applied to all columns of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function add_row!(a::MatrixElem, s::RingElement, i::Int, j::Int, rng = 1:ncols(a))
+   c = base_ring(a)(s)
+   nc = nrows(a)
+   !_checkbounds(nc, i) && error("Row index ($i) must be between 1 and $nc")
+   !_checkbounds(nc, j) && error("Row index ($j) must be between 1 and $nc")
+   temp = base_ring(a)()
+   for r in rng
+      a[j, r] = addmul!(a[j, r], c, a[i, r], temp)
+   end
+   return a
+end
+
+@doc Markdown.doc"""
+    add_row(a::MatrixElem, s::RingElement, i::Int, j::Int; rng = 1:nrows(a))
+> Create a copy of $a$ and add $s$ times the $i$-th row to the $j$-th row of $a$.
+>
+> By default, the transformation is applied to all columns of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function add_row(a::MatrixElem, s::RingElement, i::Int, j::Int, rng = 1:ncols(a))
+   b = deepcopy(a)
+   return add_row!(b, s, i, j, rng)
+end
+
+# Multiply column
+
+@doc Markdown.doc"""
+    multiply_column!(a::MatrixElem, s::RingElement, i::Int, rng = 1:ncols(a))
+
+> Multiply the $i$th column of $a$ with $s$.
+>
+> By default, the transformation is applied to all rows of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function multiply_column!(a::MatrixElem, s::RingElement, i::Int, rng = 1:nrows(a))
+   c = base_ring(a)(s)
+   nc = ncols(a)
+   !_checkbounds(nc, i) && error("Row index ($i) must be between 1 and $nc")
+   temp = base_ring(a)()
+   for r in rng
+      a[r, i] = mul!(a[r, i], c, a[r, i])
+   end
+   return a
+end
+
+@doc Markdown.doc"""
+    multiply_column(a::MatrixElem, s::RingElement, i::Int, rng = 1:ncols(a))
+
+> Create a copy of $a$ and multiply  the $i$th column of $a$ with $s$.
+>
+> By default, the transformation is applied to all rows of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function multiply_column(a::MatrixElem, s::RingElement, i::Int, rng = 1:nrows(a))
+   b = deepcopy(a)
+   return multiply_column!(b, s, i, rng)
+end
+
+# Multiply row
+
+@doc Markdown.doc"""
+    multiply_row!(a::MatrixElem, s::RingElement, i::Int, rng = 1:ncols(a))
+
+> Multiply the $i$th row of $a$ with $s$.
+>
+> By default, the transformation is applied to all columns of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function multiply_row!(a::MatrixElem, s::RingElement, i::Int, rng = 1:ncols(a))
+   c = base_ring(a)(s)
+   nc = nrows(a)
+   !_checkbounds(nc, i) && error("Row index ($i) must be between 1 and $nc")
+   temp = base_ring(a)()
+   for r in rng
+      a[i, r] = mul!(a[i, r], c, a[i, r])
+   end
+   return a
+end
+
+@doc Markdown.doc"""
+    multiply_row(a::MatrixElem, s::RingElement, i::Int, rng = 1:ncols(a))
+
+> Create a copy of $a$ and multiply  the $i$th row of $a$ with $s$.
+>
+> By default, the transformation is applied to all columns of $a$. This can be
+> changed using the optional `rng` argument.
+"""
+function multiply_row(a::MatrixElem, s::RingElement, i::Int, rng = 1:ncols(a))
+   b = deepcopy(a)
+   return multiply_row!(b, s, i, rng)
 end
 
 ###############################################################################
@@ -4593,6 +4762,139 @@ function vcat(a::AbstractAlgebra.MatElem, b::AbstractAlgebra.MatElem)
       end
    end
    return c
+end
+
+@doc Markdown.doc"""
+    vcat(A::Vector{<: MatrixElem}) -> MatrixElem
+> Return the horizontal concatenation of the matrices in $A$.
+> All component matrices need to have the same base ring and number of columns.
+"""
+function vcat(A::Vector{<: MatrixElem})
+  return _vcat(A)
+end
+
+function Base.vcat(A::MatrixElem...)
+  return _vcat(A)
+end
+
+function _vcat(A)
+  if length(A) == 0
+    error("Number of matrices to concatenate must be positive")
+  end
+
+  if any(x -> ncols(x) != ncols(A[1]), A)
+    error("Matrices must have the same number of columns")
+  end
+  
+  if any(x -> base_ring(x) != base_ring(A[1]), A)
+    error("Matrices must have the same base ring")
+  end
+
+  M = similar(A[1], sum(nrows, A), ncols(A[1]))
+  s = 0
+  for N in A
+    for j in 1:nrows(N)
+      for k in 1:ncols(N)
+        M[s+j, k] = N[j,k]
+      end
+    end
+    s += nrows(N)
+  end
+  return M
+end
+
+@doc Markdown.doc"""
+    hcat(A::Vector{<: MatrixElem}) -> MatrixElem
+> Return the horizontal concatenating of the matrices in $A$.
+> All component matrices need to have the same base ring and number of rows.
+"""
+function hcat(A::Vector{<: MatrixElem})
+  return _hcat(A)
+end
+
+function _hcat(A)
+  if length(A) == 0
+    error("Number of matrices to concatenate must be positive")
+  end
+  
+  if any(x -> nrows(x) != nrows(A[1]), A)
+    error("Matrices must have the same number of rows")
+  end
+  
+  if any(x -> base_ring(x) != base_ring(A[1]), A)
+    error("Matrices must have the same base ring")
+  end
+
+  M = similar(A[1], nrows(A[1]), sum(ncols, A))
+  s = 0
+  for N in A
+    for j in 1:ncols(N)
+      for k in 1:nrows(N)
+        M[k, s + j] = N[k, j]
+      end
+    end
+    s += ncols(N)
+  end
+  return M
+end
+
+function Base.hcat(A::MatrixElem...)
+  return _hcat(A)
+end
+
+function Base.cat(A::MatrixElem...;dims) 
+  @assert dims == (1,2) || isa(dims, Int)
+
+  if isa(dims, Int) 
+    if dims == 1
+      return hcat(A...)
+    elseif dims == 2
+      return vcat(A...)
+    else
+      error("dims must be 1, 2, or (1,2)")
+    end
+  end
+
+  local X
+  for i in 1:length(A)
+    if i == 1
+      X = hcat(A[1], zero(A[1], nrows(A[1]), sum(Int[ncols(A[j]) for j=2:length(A)])))
+    else
+      X = vcat(X, hcat(zero(A[1], nrows(A[i]), sum(ncols(A[j]) for j=1:i-1)), A[i], zero(A[1], nrows(A[i]), sum(Int[ncols(A[j]) for j in (i+1):length(A)]))))
+    end
+  end
+  return X
+end
+
+function Base.hvcat(rows::Tuple{Vararg{Int}}, A::MatrixElem...)
+  nr = 0
+  k = 1
+  for i in 1:length(rows)
+    nr += nrows(A[k])
+    k += rows[i]
+  end
+
+  nc = sum(ncols(A[i]) for i in 1:rows[1])
+
+  M = similar(A[1], nr, nc)
+  mat_offset = 0
+  row_offset = 0
+  for j in 1:length(rows)
+    s = 0
+    for i in 1:rows[j]
+      N = A[mat_offset + i]
+      for l in 1:ncols(N)
+        for k in 1:nrows(N)
+          M[row_offset + k, s + l] = N[k, l]
+        end
+      end
+      s += ncols(N)
+    end
+    row_offset += nrows(A[1+ mat_offset])
+    mat_offset += rows[j]
+  end
+
+  return M
 end
 
 ###############################################################################
