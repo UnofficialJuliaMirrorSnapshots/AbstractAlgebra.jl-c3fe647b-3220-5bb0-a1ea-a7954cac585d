@@ -133,11 +133,14 @@ Base.size(a::MyTestMatrix{T}) where T = a.dim, a.dim
    arr2 = [1, 2, 3, 4, 5, 6]
 
    for T in [R, Int, BigInt, Rational{Int}, Rational{BigInt}]
-      M = matrix(R, map(T, arr))
-      @test isa(M, Generic.MatSpaceElem{elem_type(R)})
-      @test M.base_ring == R
-      @test nrows(M) == 2
-      @test ncols(M) == 2
+      for M in (matrix(R, map(T, arr)),
+                matrix(R, 2, 2, map(T, arr)))
+         @test isa(M, Generic.MatSpaceElem{elem_type(R)})
+         @test M.base_ring == R
+         @test nrows(M) == 2
+         @test ncols(M) == 2
+      end
+      @test_throws ErrorConstrDimMismatch matrix(R, 2, 3, map(T, arr))
 
       M2 = matrix(R, 2, 3, map(T, arr2))
       @test isa(M2, Generic.MatSpaceElem{elem_type(R)})
@@ -1941,10 +1944,10 @@ end
          M = algebra ? MatrixAlgebra(R, u) : MatrixSpace(R, u, v)
          m0 = M(mat)
          for f0 = (x -> x + 1, x -> x*2, x -> one(R), x -> zero(R))
-            for f = (f0, map_from_func(R, R, f0))
+            for f = (f0, map_from_func(f0, R, R))
                m = deepcopy(m0)
                n0 = similar(m)
-               n = map!(f, n0, m)
+               n = map_entries!(f, n0, m)
                @test n === n0 # map! must return its argument
                if !isempty(mat)
                   # when empty, it may happen that the result of map below has Any
@@ -1958,8 +1961,8 @@ end
       m = deepcopy(m0)
       for S = [QQ, ZZ, GF(2), GF(7), PolynomialRing(GF(5), 'x')[1]]
          for f0 = (x -> S(x), x -> S(x + 1))
-            for f = (f0, map_from_func(ZZ, S, f0))
-               n = map(f, m)
+            for f = (f0, map_from_func(f0, ZZ, S))
+               n = map_entries(f, m)
                @test n !== m
                @test m == m0 # map's input must not be mutated
                M = algebra ? MatrixAlgebra(S, u) : MatrixSpace(S, u, v)

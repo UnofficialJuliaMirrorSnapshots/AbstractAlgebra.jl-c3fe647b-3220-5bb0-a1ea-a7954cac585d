@@ -199,10 +199,9 @@ using the following function, where $g$ is a function representing the
 structure homomorphism of the $T$-algebra $S$.
 
 ```@docs
-change_base_ring(p::AbstractAlgebra.MPolyElem{T}, g) where {T <: RingElement}
+change_base_ring(::Ring, p::AbstractAlgebra.MPolyElem{T}) where {T <: RingElement}
+map_coeffs(::Any, p::AbstractAlgebra.MPolyElem{T}) where {T <: RingElement}
 ```
-
-Note that $g$ can also be a Nemo parent, e.g. `QQ`.
 
 **Examples**
 
@@ -213,18 +212,13 @@ julia> R, (x, y) = PolynomialRing(ZZ, ["x", "y"])
 julia> fz = x^2*y^2 + x + 1
 x^2*y^2+x+1
 
-julia> fq = change_base_ring(fz, QQ)
+julia> fq = change_base_ring(QQ, fz)
 x^2*y^2+x+1//1
 
 ```
 
 Incase a specific parent ring is constructed, it can also be passed to the function.
 
-```@docs
-change_base_ring(R::Ring, p::AbstractAlgebra.MPolyElem{T}, Rx::AbstractAlgebra.MPolyRing) where {T <: RingElement}
-change_base_ring(R::Ring, p::AbstractAlgebra.MPolyElem{T}) where {T <: RingElement}
-map(g, p::AbstractAlgebra.MPolyElem{T}, Rx::AbstractAlgebra.MPolyRing) where {T <: RingElement}
-map(g, p::AbstractAlgebra.MPolyElem{T}) where {T <: RingElement}
 ```
 
 **Examples**
@@ -354,22 +348,6 @@ evaluate(::AbstractAlgebra.MPolyElem{T}, ::Vector{Int}, ::Vector{U}) where {T <:
 
 ```@docs
 evaluate(::S, ::Vector{S}, ::Vector{U}) where {S <: AbstractAlgebra.MPolyElem{T}, U <: RingElement} where T <: RingElement
-```
-
-The following functions allow a map or function to be applied to the
-coefficients of the polynomial before doing the evaluation. Note that one
-can simply supply a `Ring` object for the map (see the examples).
-
-```@docs
-evaluate(::AbstractAlgebra.MPolyElem{T}, ::Vector{U}, ::Any) where {T <: RingElement, U <: RingElement}
-```
-
-```@docs
-evaluate(::AbstractAlgebra.MPolyElem{T}, ::Vector{Int}, ::Vector{U}, ::Any) where {T <: RingElement, U <: RingElement}
-```
-
-```@docs
-evaluate(::S, ::Vector{S}, ::Vector{U}, ::Any) where {S <: AbstractAlgebra.MPolyElem{T}, U <: RingElement} where T <: RingElement
 ```
 
 The following function allows evaluation of a polynomial at values in a

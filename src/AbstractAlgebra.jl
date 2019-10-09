@@ -5,12 +5,12 @@ using Markdown
 using InteractiveUtils
 
 # A list of all symbols external packages should not import from AbstractAlgebra
-import_exclude = [:import_exclude, :QQ, :ZZ, :RR,
-           :RealField, :NumberField,
-           :AbstractAlgebra,
-           :exp, :sqrt, :div, :divrem, :numerator, :denominator,
-           :promote_rule,
-           :Set, :Module, :Ring, :Group, :Field]
+import_exclude = [:import_exclude, :QQ, :ZZ,
+                  :RealField, :NumberField,
+                  :AbstractAlgebra,
+                  :exp, :sqrt, :div, :divrem, :numerator, :denominator,
+                  :promote_rule,
+                  :Set, :Module, :Ring, :Group, :Field]
 
 import LinearAlgebra: det, norm, nullspace, rank, transpose!, hessenberg
 
@@ -18,20 +18,71 @@ import LinearAlgebra: lu, lu!, tr
 
 export nullspace
 
-# Do not import div, divrem, exp, sqrt, numerator or denominator as we define our own
-import Base: Array, abs, acos, acosh, adjoint, asin, asinh, atan, atanh,
-             bin, ceil, checkbounds, conj, convert, cmp, cos, cosh,
-             cospi, cot, coth, dec, deepcopy, deepcopy_internal,
-             expm1, exponent, fill, floor, gcd, gcdx,
-             getindex, hash, hcat, hex, hypot, intersect, inv, invmod, isequal,
-             isfinite, isless, isone, isqrt, isreal, iszero, lcm, ldexp, length,
-             log, log1p, mod, ndigits,
-             oct, one, parent, parse, precision,
-             rand, Rational, rem, reverse,
-             setindex!, show, sincos, similar, sign, sin, sinh, sinpi, size, string,
-             tan, tanh, trailing_zeros, transpose, truncate,
-             typed_hvcat, typed_hcat, vcat, xor, zero, zeros, +, -, *, ==, ^,
-             &, |, <<, >>, ~, <=, >=, <, >, //, /, !=
+################################################################################
+#
+#  Import/export philosophy
+#
+#  For certain julia Base types and Base function, e.g. BigInt and div or exp, we
+#  need a different behavior. These functions are not exported.
+#
+#  Take for example exp. Since exp is not imported from Base, there are two exp
+#  functions, AbstractAlgebra.exp and Base.exp. Inside AbstractAlgebra, exp
+#  will always refer to AbstractAlgebra.exp. When calling the function, one
+#  should just use "exp" without namespace qualifcation.
+#
+#  On the other hand, if an AbstractAlgebra type wants to add a method to exp,
+#  it must add a method to "Base.exp".
+#
+#  The rational for this is as follows: If we do "using AbstractAlgebra" in the
+#  REPL, then "exp" will refer to the Base.exp. So if we want to make exp(a)
+#  work in the REPL for an AbstractAlgebra type, we have to overload Base.exp.
+#
+################################################################################
+
+# This is the list of functions for which we locally have a different behavior.
+const Base_import_exclude = [:exp, :sqrt, :div, :divrem, :numerator, :denominator]
+
+################################################################################
+#
+#  Functions that we do not import from Base
+#
+################################################################################
+
+function exp(a::T) where T
+   return Base.exp(a)
+end
+
+function sqrt(a::T) where T
+  return Base.sqrt(a)
+end
+
+function divrem(a::T, b::T) where T
+  return Base.divrem(a, b)
+end
+
+function div(a::T, b::T) where T
+  return Base.div(a, b)
+end
+
+function numerator(a::T, canonicalise::Bool=true) where T
+  return Base.numerator(a, canonicalise)
+end
+
+function denominator(a::T, canonicalise::Bool=true) where T
+  return Base.denominator(a, canonicalise)
+end
+
+import Base: Array, abs, acos, acosh, adjoint, asin, asinh, atan, atanh, bin,
+             ceil, checkbounds, conj, convert, cmp, cos, cosh, cospi, cot,
+             coth, dec, deepcopy, deepcopy_internal, expm1, exponent, fill,
+             floor, gcd, gcdx, getindex, hash, hcat, hex, hypot, intersect,
+             inv, invmod, isequal, isfinite, isless, isone, isqrt, isreal,
+             iszero, lcm, ldexp, length, log, log1p, mod, ndigits, oct, one,
+             parent, parse, precision, rand, Rational, rem, reverse, setindex!,
+             show, sincos, similar, sign, sin, sinh, sinpi, size, string, tan,
+             tanh, trailing_zeros, transpose, truncate, typed_hvcat,
+             typed_hcat, vcat, xor, zero, zeros, +, -, *, ==, ^, &, |, <<, >>,
+             ~, <=, >=, <, >, //, /, !=
 
 using Random: Random, AbstractRNG
 
@@ -95,6 +146,7 @@ end
 
 include("julia/JuliaTypes.jl")
 
+
 ###############################################################################
 #
 #   Generic submodule
@@ -146,7 +198,7 @@ import .Generic: add!, addeq!, addmul!, add_column, add_column!, add_row, add_ro
                  laurent_ring, lc, lcm, lead, left_kernel, length,
                  leglength, lm, lt, main_variable,
                  main_variable_extract, main_variable_insert,
-                 map1, map2, map_from_func,
+                 map1, map2, map_from_func, map_coeffs, map_entries, map_entries!,
                  map_with_preimage_from_func, map_with_retraction,
                  map_with_retraction_from_func,
                  map_with_section, map_with_section_from_func, mat, matrix,
@@ -224,7 +276,7 @@ export add!, addeq!, addmul!, addmul_delayed_reduction!, addmul!, add_column, ad
                  lc, lcm, lead, left_kernel, leglength,
                  length, lm, lu, lu!, lt,
                  main_variable, main_variable_extract, main_variable_insert,
-                 map1, map2, map_from_func, map_with_preimage_from_func,
+                 map1, map2, map_from_func, map_coeffs, map_entries, map_entries!, map_with_preimage_from_func,
                  map_with_retraction, map_with_retraction_from_func,
                  map_with_section, map_with_section_from_func,
                  mat, matrix, matrix_repr, max_fields,
@@ -258,29 +310,11 @@ export add!, addeq!, addmul!, addmul_delayed_reduction!, addmul!, add_column, ad
                  weak_popov_with_transform, zero, zero!, zero_matrix,
                  @PolynomialRing, MatrixElem
 
-function exp(a::T) where T
-   return Base.exp(a)
-end
-
-function sqrt(a::T) where T
-  return Base.sqrt(a)
-end
-
-function divrem(a::T, b::T) where T
-  return Base.divrem(a, b)
-end
-
-function div(a::T, b::T) where T
-  return Base.div(a, b)
-end
-
-function numerator(a::T, canonicalise::Bool=true) where T
-  return Base.numerator(a, canonicalise)
-end
-
-function denominator(a::T, canonicalise::Bool=true) where T
-  return Base.denominator(a, canonicalise)
-end
+################################################################################
+#
+#   Parent constructors
+#
+################################################################################
 
 function PermGroup(n::T) where T
   Generic.PermGroup(n)

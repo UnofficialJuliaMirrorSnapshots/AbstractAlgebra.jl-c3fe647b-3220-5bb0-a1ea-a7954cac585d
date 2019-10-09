@@ -13,7 +13,7 @@ export max_fields, total_degree, gens, divides, isconstant, isdegree,
        combine_like_terms!, exponent, exponent_vector, exponent_vectors,
        set_exponent_vector!, sort_terms!, coeffs, monomial, monomial!,
        monomials, term, terms, var_index, @PolynomialRing, lc, lm, lt, lcm,
-       MPolyBuildCtx, ishomogeneous
+       MPolyBuildCtx, ishomogeneous, map_coeffs
 
 ###############################################################################
 #
@@ -2679,7 +2679,7 @@ function div_monagan_pearce(a::MPoly{T}, b::MPoly{T}, bits::Int) where {T <: Rin
          if !d1
             k -= 1
          else
-            tq, tr = AbstractAlgebra.divrem(qc, mb)
+            tq, tr = divrem(qc, mb)
             if tq != 0
                Qc[k] = tq
                monomial_set!(Qe, k, texp, 1, N)
@@ -2718,7 +2718,7 @@ function div_monagan_pearce(a::MPoly{T}, b::MPoly{T}, bits::Int) where {T <: Rin
    return flag, parent(a)(Qc, Qe)
 end
 
-function div(a::MPoly{T}, b::MPoly{T}) where {T <: RingElement}
+function Base.div(a::MPoly{T}, b::MPoly{T}) where {T <: RingElement}
    v1, d1 = max_fields(a)
    v2, d2 = max_fields(b)
    d = max(d1, d2)
@@ -2895,7 +2895,7 @@ function divrem_monagan_pearce(a::MPoly{T}, b::MPoly{T}, bits::Int) where {T <: 
             monomial_set!(Re, l, exp_copy, 1, N)
             k -= 1
          else
-            tq, tr = AbstractAlgebra.divrem(qc, mb)
+            tq, tr = divrem(qc, mb)
             if tr != 0
                l += 1
                if l >= r_alloc
@@ -2942,7 +2942,7 @@ function divrem_monagan_pearce(a::MPoly{T}, b::MPoly{T}, bits::Int) where {T <: 
    return flag, parent(a)(Qc, Qe), parent(a)(Rc, Re)
 end
 
-function divrem(a::MPoly{T}, b::MPoly{T}) where {T <: RingElement}
+function Base.divrem(a::MPoly{T}, b::MPoly{T}) where {T <: RingElement}
    v1, d1 = max_fields(a)
    v2, d2 = max_fields(b)
    d = max(d1, d2)
@@ -3115,7 +3115,7 @@ function divrem_monagan_pearce(a::MPoly{T}, b::Array{MPoly{T}, 1}, bits::Int) wh
          for w = 1:len
             d1 = monomial_divides!(texp, 1, exp_copy, 1, b[w].exps, 1, mask, N)
             if d1
-               tq, qc = AbstractAlgebra.divrem(qc, mb[w])
+               tq, qc = divrem(qc, mb[w])
                div_flag = qc == 0
                if tq != 0
                   k[w] += 1
@@ -3175,7 +3175,7 @@ end
 > Return a tuple `(q, r)` consisting of an array of polynomials `q`, one for
 > each polynomial in `b`, and a polynomial `r` such that `a = sum_i b[i]*q[i] + r`.
 """
-function divrem(a::MPoly{T}, b::Array{MPoly{T}, 1}) where {T <: RingElement}
+function Base.divrem(a::MPoly{T}, b::Array{MPoly{T}, 1}) where {T <: RingElement}
    v1, d = max_fields(a)
    len = length(b)
    N = parent(a).N
@@ -3497,38 +3497,6 @@ end
 function evaluate(a::S, vars::Vector{S}, vals::Vector{U}) where {S <: AbstractAlgebra.MPolyElem{T}, U <: RingElement} where T <: RingElement
    varidx = Int[var_index(x) for x in vars]
    return evaluate(a, varidx, vals)
-end
-
-@doc Markdown.doc"""
-    evaluate(a::AbstractAlgebra.MPolyElem{T}, A::Vector{U}, g) where {T <: RingElement, U <: RingElement}
-> Evaluate the polynomial at the supplied values after applying the `Map` or `Function`
-> given by $g$ to the coefficients of the polynomial.
-"""
-function evaluate(a::AbstractAlgebra.MPolyElem{T}, A::Vector{U}, g) where {T <: RingElement, U <: RingElement}
-   anew = change_base_ring(g, a)
-   return evaluate(anew, A)
-end
-
-@doc Markdown.doc"""
-    evaluate(a::AbstractAlgebra.MPolyElem{T}, vars::Vector{Int}, vals::Vector{U}, g) where {T <: RingElement, U <: RingElement}
-> Evaluate the polynomial at the supplied values for the variables with given indices
-> after applying the `Map` or `Function` given by $g$ to the coefficients of the
-> polynomial.
-"""
-function evaluate(a::AbstractAlgebra.MPolyElem{T}, vars::Vector{Int}, vals::Vector{U}, g) where {T <: RingElement, U <: RingElement}
-   anew = change_base_ring(g, a)
-   return evaluate(anew, vars, vals)
-end
-
-@doc Markdown.doc"""
-    evaluate(a::S, vars::Vector{S}, vals::Vector{U}, g) where {S <: AbstractAlgebra.MPolyElem{T}, U <: RingElement} where T <: RingElement
-> Evaluate the polynomial at the supplied values for the given variables after
-> applying the `Map` or `Function` given by $g$ to the coefficients of the polynomial.
-"""
-function evaluate(a::S, vars::Vector{S}, vals::Vector{U}, g) where {S <: AbstractAlgebra.MPolyElem{T}, U <: RingElement} where T <: RingElement
-   anew = change_base_ring(g, a)
-   varidx = [var_index(x) for x in vars]
-   return evaluate(anew, varidx, vals)
 end
 
 function (a::MPoly{T})(vals::T...) where T <: RingElement
@@ -4642,54 +4610,40 @@ end
 #
 ################################################################################
 
-@doc Markdown.doc"""
-    change_base_ring(R::Ring, p::MPolyElem{<: RingElement}, Rx::MPolyRing)
+function _change_mpoly_ring(R, Rx, cached)
+   P, _ = AbstractAlgebra.PolynomialRing(R, map(string, symbols(Rx)), ordering = ordering(Rx), cached = cached)
+   return P
+end
 
-> Return the polynomial of `Rx` obtained by coercing the coefficients of `p`
+@doc Markdown.doc"""
+    change_base_ring(R::Ring, p::MPolyElem{<: RingElement}; parent::MPolyRing, cached::Bool)
+
+> Return the polynomial obtained by coercing the non-zero coefficients of `p`
 > into `R`.
+>
+> If the optional `parent` keyword is provided, the polynomial will be an
+> element of `parent`. The caching of the parent object can be controlled
+> via the `cached` keyword argument.
 """
-function change_base_ring(R::Ring, p::AbstractAlgebra.MPolyElem{T}, Rx::AbstractAlgebra.MPolyRing) where {T <: RingElement}
-   base_ring(Rx) != R && error("Base rings do not match.")
-
-   return _map(R, p, Rx)
+function change_base_ring(R::Ring, p::MPolyElem{T}; cached = true, parent::MPolyRing = _change_mpoly_ring(R, parent(p), cached)) where {T <: RingElement}
+   base_ring(parent) != R && error("Base rings do not match.")
+   return _map(R, p, parent)
 end
 
 @doc Markdown.doc"""
-    change_base_ring(R::Ring, p::MPolyElem{<: RingElement})
+    map_coeffs(f, p::MPolyElem{<: RingElement}; parent::MPolyRing)
 
-> Return the polynomial obtained by coercing the coefficients of `p` into `R`.
+> Transform the polynomial `p` by applying `f` on each non-zero coefficient.
+>
+> If the optional `parent` keyword is provided, the polynomial will be an
+> element of `parent`. The caching of the parent object can be controlled
+> via the `cached` keyword argument.
 """
-function change_base_ring(R::Ring, p::AbstractAlgebra.MPolyElem{T}) where T <: RingElement
-   new_polynomial_ring, gens_new_polynomial_ring = AbstractAlgebra.PolynomialRing(R, map(string, symbols(parent(p))), ordering = ordering(parent(p)))
-
-   return _map(R, p, new_polynomial_ring)
+function map_coeffs(f, p::MPolyElem; cached = true, parent::MPolyRing = _change_mpoly_ring(AbstractAlgebra.parent(f(zero(base_ring(p)))), AbstractAlgebra.parent(p), cached))
+   return _map(f, p, parent)
 end
 
-@doc Markdown.doc"""
-    map(f, p::MPolyElem{<: RingElement})
-
-> Transform the polynomial `p` by applying `f` on each coefficient.
-"""
-function Base.map(f, p::MPolyElem)
-   R = parent(f(zero(base_ring(p))))
-   new_poly_ring, gens_new_poly_ring = AbstractAlgebra.PolynomialRing(R, map(string, symbols(parent(p))), ordering = ordering(parent(p)))
-   return _map(f, p, new_poly_ring)
-end
-
-@doc Markdown.doc"""
-    map(f, p::MPolyElem{<: RingElement}, Rx::MPolyRing)
-
-> Transform the polynomial `p` into a polynomial of `Rx` by applying `f` on
-> each coefficient.
-"""
-function Base.map(f, p::MPolyElem, Rx::MPolyRing)
-   z = f(zero(base_ring(parent(p))))
-   base_ring(Rx) != parent(z) && error("Base rings do not match.")
-
-   return _map(f, p, Rx)
-end
-
-function _map(g, p, Rx)
+function _map(g, p::MPolyElem, Rx)
    cvzip = zip(coeffs(p), exponent_vectors(p))
    M = MPolyBuildCtx(Rx)
    for (c, v) in cvzip

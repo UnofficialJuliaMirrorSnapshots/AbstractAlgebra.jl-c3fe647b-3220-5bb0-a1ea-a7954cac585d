@@ -21,7 +21,7 @@ export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
        kronecker_product, minors, tr, lu, lu!, pseudo_inv, dense_matrix_type,
        kernel, iszero_row, iszero_column, left_kernel, right_kernel, ishnf,
        solve_left, add_column, add_column!, add_row, add_row!, multiply_column,
-       multiply_column!, multiply_row, multiply_row!
+       multiply_column!, multiply_row, multiply_row!, map_entries, map_entries!
 
 ###############################################################################
 #
@@ -459,8 +459,6 @@ function show(io::IO, a::MatrixElem)
       end
    end
 end
-
-show_minus_one(::Type{AbstractAlgebra.MatElem{T}}) where {T <: RingElement} = false
 
 ###############################################################################
 #
@@ -1711,7 +1709,7 @@ function det_interpolation(M::MatrixElem{T}) where {T <: PolyElem}
    x = Array{elem_type(base_ring(R))}(undef, bound)
    d = Array{elem_type(base_ring(R))}(undef, bound)
    X = zero_matrix(base_ring(R), n, n)
-   b2 = AbstractAlgebra.div(bound, 2)
+   b2 = div(bound, 2)
    pt1 = base_ring(R)(1 - b2)
    for i = 1:bound
       x[i] = base_ring(R)(i - b2)
@@ -2027,7 +2025,7 @@ function solve_interpolation(M::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.M
    X = similar(tmat, m, m)
    Y = similar(tmat, m, h)
    x = similar(b)
-   b2 = AbstractAlgebra.div(bound, 2)
+   b2 = div(bound, 2)
    pt1 = base_ring(R)(1 - b2)
    l = 1
    i = 1
@@ -2140,7 +2138,7 @@ function solve_left(a::AbstractAlgebra.MatElem{S}, b::AbstractAlgebra.MatElem{S}
          if k > ncols(H)
             continue
          end
-         q, r = AbstractAlgebra.divrem(b[i, k], H[j, k])
+         q, r = divrem(b[i, k], H[j, k])
          r != 0 && error("Unable to solve linear system")
          z[i, j] = q
          q = -q
@@ -2295,7 +2293,7 @@ function can_solve_left_reduced_triu(r::AbstractAlgebra.MatElem{T},
       if k != i
          return false, x
       end
-      x[1, j], r[1, i] = AbstractAlgebra.divrem(r[1, i], M[j, k])
+      x[1, j], r[1, i] = divrem(r[1, i], M[j, k])
       if !iszero(r[1, i])
          return false, x
       end
@@ -3204,7 +3202,7 @@ function hnf_cohen!(H::MatrixElem{T}, U::MatrixElem{T}) where {T <: RingElement}
          end
       end
       for j = 1:k-1
-         q = -AbstractAlgebra.div(H[j,i], H[k, i])
+         q = -div(H[j,i], H[k, i])
          for c = i:n
             t = mul!(t, q, H[k, c])
             H[j, c] = addeq!(H[j, c], t)
@@ -3380,7 +3378,7 @@ function _hnf_minors!(H::MatrixElem{T}, U::MatrixElem{T}, with_transform::Type{V
 
       for i in (k - 1):-1:1
          for j in (i + 1):k
-            q = AbstractAlgebra.div(H[i, j], H[j, j])
+            q = div(H[i, j], H[j, j])
             if iszero(q)
               continue
             end
@@ -3465,7 +3463,7 @@ function _hnf_minors!(H::MatrixElem{T}, U::MatrixElem{T}, with_transform::Type{V
       end
       for i in n:-1:1
          for j in (i + 1):n
-            q = AbstractAlgebra.div(H[i, j], H[j, j])
+            q = div(H[i, j], H[j, j])
             if iszero(q)
               continue
             end
@@ -3557,7 +3555,7 @@ function kb_reduce_column!(H::MatrixElem{T}, U::MatrixElem{T}, pivot::Array{Int,
       if iszero(H[p, c])
          continue
       end
-      q = -AbstractAlgebra.div(H[p, c], H[r, c])
+      q = -div(H[p, c], H[r, c])
       for j = c:ncols(H)
          t = mul!(t, q, H[r, j])
          H[p, j] = addeq!(H[p, j], t)
@@ -3763,7 +3761,7 @@ function ishnf(M::Generic.MatrixElem{T}) where T <: RingElement
       col = pivots[row]
       p = M[row, col]
       for i = 1:row - 1
-         qq, rr = AbstractAlgebra.divrem(M[i, col], p)
+         qq, rr = divrem(M[i, col], p)
          if rr != M[i, col]
             return false
          end
@@ -4051,7 +4049,7 @@ function weak_popov_with_pivots!(P::Mat{T}, W::Mat{T}, U::Mat{T}, pivots::Array{
             if j == pivotInd
                continue
             end
-            q = -AbstractAlgebra.div(P[pivots[i][j], i], P[pivot, i])
+            q = -div(P[pivots[i][j], i], P[pivot, i])
             for c = 1:n
                t = mul!(t, q, P[pivot, c])
                P[pivots[i][j], c] = addeq!(P[pivots[i][j], c], t)
@@ -4155,7 +4153,7 @@ function det_popov(A::Mat{T}) where {T <: PolyElem}
             r1, r2 = r2, r1
             pivots[c] = r2
          end
-         q = -AbstractAlgebra.div(B[r1, c], B[r2, c])
+         q = -div(B[r1, c], B[r2, c])
          for j = 1:i + 1
             t = mul!(t, q, B[r2, j])
             B[r1, j] = addeq!(B[r1, j], t)
@@ -4270,7 +4268,7 @@ function popov!(P::Mat{T}, U::Mat{T}, with_trafo::Bool = false) where {T <: Poly
          if degree(P[r,i]) < d
             continue
          end
-         q = -AbstractAlgebra.div(P[r,i],P[pivot,i])
+         q = -div(P[r,i],P[pivot,i])
          for c = 1:n
             t = mul!(t, q, P[pivot,c])
             P[r, c] = addeq!(P[r,c], t)
@@ -4333,7 +4331,7 @@ function hnf_via_popov_reduce_row!(H::Mat{T}, U::Mat{T}, pivots_hermite::Array{I
          continue
       end
       pivot = pivots_hermite[c]
-      q = -AbstractAlgebra.div(H[r, c], H[pivot, c])
+      q = -div(H[r, c], H[pivot, c])
       for j = c:n
          t = mul!(t, q, H[pivot, j])
          H[r, j] = addeq!(H[r, j], t)
@@ -4360,7 +4358,7 @@ function hnf_via_popov_reduce_column!(H::Mat{T}, U::Mat{T}, pivots_hermite::Arra
       if degree(H[i, c]) < degree(H[r, c])
          continue
       end
-      q = -AbstractAlgebra.div(H[i, c], H[r, c])
+      q = -div(H[i, c], H[r, c])
       for j = 1:n
          t = mul!(t, q, H[r, j])
          H[i, j] = addeq!(H[i, j], t)
@@ -4405,7 +4403,7 @@ function hnf_via_popov!(H::Mat{T}, U::Mat{T}, with_trafo::Bool = false) where {T
             r1, r2 = r2, r1
             pivots_popov[c] = r2
          end
-         q = -AbstractAlgebra.div(H[r1, c], H[r2, c])
+         q = -div(H[r1, c], H[r2, c])
          for j = 1:n
             t = mul!(t, q, H[r2, j])
             H[r1, j] = addeq!(H[r1, j], t)
@@ -4539,7 +4537,7 @@ end
 > where $r$ is the number of rows of $a$.
 """
 function reverse_rows!(a::MatrixElem)
-   k = AbstractAlgebra.div(nrows(a), 2)
+   k = div(nrows(a), 2)
    for i in 1:k
       swap_rows!(a, i, nrows(a) - i + 1)
    end
@@ -4563,7 +4561,7 @@ end
 > where $c$ is the number of columns of $a$.
 """
 function reverse_cols!(a::MatrixElem)
-   k = AbstractAlgebra.div(ncols(a), 2)
+   k = div(ncols(a), 2)
    for i in 1:k
       swap_cols!(a, i, ncols(a) - i + 1)
    end
@@ -5082,8 +5080,9 @@ end
 > Constructs the $r \times c$ matrix over $R$, where the entries are taken
 > row-wise from `arr`.
 """
-function matrix(R::Ring, r::Int, c::Int, arr::AbstractArray{T, 1}) where T
+function matrix(R::Ring, r::Int, c::Int, arr::AbstractVecOrMat{T}) where T
    _check_dim(r, c, arr)
+   ndims(arr) == 2 && return matrix(R, arr)
    if elem_type(R) === T
      z = MatSpaceElem{elem_type(R)}(r, c, arr)
      z.base_ring = R
@@ -5156,12 +5155,13 @@ end
 
 ###############################################################################
 #
-#   change_base_ring, Base.map! and Base.map
+#   change_base_ring, map_entries, map_entries!, Base.map! and Base.map
 #
 ###############################################################################
 
 @doc Markdown.doc"""
-    change_base_ring(R::Ring, M::Generic.MatrixElem)
+    change_base_ring(R::Ring, M::MatrixElem)
+
 > Return the matrix obtained by coercing each entry into `R`.
 """
 function change_base_ring(R::Ring, M::MatrixElem)
@@ -5173,23 +5173,25 @@ function change_base_ring(R::Ring, M::MatrixElem)
 end
 
 @doc Markdown.doc"""
-    map!(f, dst::Generic.MatrixElem, src::Generic.MatrixElem)
+    map_entries!(f, dst::MatrixElem, src::MatrixElem)
 
 > Like `map`, but stores the result in `dst` rather than a new matrix.
 """
-function Base.map!(f, dst::MatrixElem, src::MatrixElem)
+function map_entries!(f, dst::MatrixElem, src::MatrixElem)
    for i = 1:nrows(src), j = 1:ncols(src)
       dst[i, j] = f(src[i, j])
    end
    dst
 end
 
+Base.map!(f, dst::MatrixElem, src::MatrixElem) = map_entries!(f, dst, src)
+
 @doc Markdown.doc"""
-    map(f, a::Generic.MatrixElem)
+    map_entries(f, a::MatrixElem)
 
 > Transform matrix `a` by applying `f` on each element.
 """
-function Base.map(f, a::MatrixElem)
+function map_entries(f, a::MatrixElem)
    isempty(a) && return similar(a, parent(f(zero(base_ring(a)))))
    b11 = f(a[1, 1])
    b = similar(a, parent(b11))
@@ -5200,3 +5202,5 @@ function Base.map(f, a::MatrixElem)
    end
    b
 end
+
+Base.map(f, a::MatrixElem) = map_entries(f, a)
