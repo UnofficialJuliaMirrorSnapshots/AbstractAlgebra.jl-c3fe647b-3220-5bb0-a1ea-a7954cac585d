@@ -103,6 +103,7 @@ Base.size(a::MyTestMatrix{T}) where T = a.dim, a.dim
    f = S(t^2 + 1)
 
    @test isa(f, MatElem)
+   @test parent_type(f) == typeof(S)
 
    g = S(2)
 
@@ -167,6 +168,20 @@ Base.size(a::MyTestMatrix{T}) where T = a.dim, a.dim
    @test isa(M4, Generic.MatSpaceElem{elem_type(R)})
    @test M4.base_ring == R
 
+   M5 = identity_matrix(R, 2, 3)
+   M6 = identity_matrix(M5)
+
+   @test isa(M5, Generic.MatSpaceElem{elem_type(R)})
+   @test M5.base_ring == R
+   @test M5 == M6
+
+   M7 = identity_matrix(R, 3, 2)
+   M8 = identity_matrix(M7)
+
+   @test isa(M7, Generic.MatSpaceElem{elem_type(R)})
+   @test M7.base_ring == R
+   @test M7 == M8
+
    x = zero_matrix(R, 2, 2)
    y = zero_matrix(ZZ, 2, 3)
 
@@ -218,6 +233,11 @@ end
 
    @test dense_matrix_type(R) == elem_type(S)
 
+   let ET = AbstractAlgebra.Generic.Poly{Rational{BigInt}}
+      @test eltype(typeof(A)) == eltype(A) == elem_type(base_ring(A)) == ET
+      @test eltype(typeof(B)) == eltype(B) == elem_type(base_ring(B)) == ET
+   end
+
    @test iszero(zero(S))
    @test isone(one(S))
 
@@ -254,7 +274,14 @@ end
    @test !any(isempty, (A, B, C))
 
    @test length(matrix(R, zeros(Int, 2, 3))) == 6
-   @test length(matrix(R, zeros(Int, 3, 2))) == 6
+
+   n = matrix(R, zeros(Int, 3, 2))
+   @test length(n) == 6
+   let ET = AbstractAlgebra.Generic.Poly{Rational{BigInt}}
+      @test eltype(typeof(n)) == ET
+      @test eltype(n) == ET
+      @test elem_type(base_ring(n)) == ET
+   end
 
    for n = (matrix(R, zeros(Int, 2, 0)),
             matrix(R, zeros(Int, 0, 2)))
@@ -270,6 +297,10 @@ end
               randmat_with_rank(M3, 2, 0:9, -9:9),
               randmat_with_rank(rng, M3, 2, 0:9, -9:9)]
       @test length(m3) == 9
+      ET = AbstractAlgebra.Generic.Poly{Rational{BigInt}}
+      @test eltype(typeof(m3)) == ET
+      @test eltype(m3) == ET
+      @test elem_type(base_ring(m3)) == ET
       @test !isempty(m3)
       @test !iszero(m3)
       @test m3 isa Generic.MatAlgElem
@@ -292,6 +323,12 @@ end
       @test !iszero(m45)
       @test m45 isa Generic.MatSpaceElem
       @test parent(m45) == M45
+   end
+
+   let m = matrix(ZZ, 2, 3, 1:6)
+      @test typeof(m[1, 1]) == BigInt # not in AbstractAlgebra's hierarchy
+      @test eltype(m) == BigInt
+      @test eltype(typeof(m)) == BigInt
    end
 end
 
@@ -1110,7 +1147,6 @@ end
       @test c isa eltype(M)
 
       @test isunit(c)
-      @test inv(c) isa eltype(M)
       @test N[i,j] == -1
       @test M*N == N*M == c*R(1)
 
@@ -2006,7 +2042,7 @@ end
    end
 end
 
-@testset "Generic.Mat.show..." begin
+@testset "Generic.Mat.printing..." begin
    @test string(matrix(ZZ, [3 1 2; 2 0 1])) == "[3  1  2]\n[2  0  1]"
    @test string(matrix(ZZ, [3 1 2; 2 0 1])) == "[3  1  2]\n[2  0  1]"
    @test string(matrix(ZZ, 2, 0, [])) == "2 by 0 matrix"

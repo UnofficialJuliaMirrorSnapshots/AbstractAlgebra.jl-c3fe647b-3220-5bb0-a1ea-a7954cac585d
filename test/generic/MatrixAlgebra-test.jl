@@ -110,6 +110,12 @@ end
 
    @test isa(m, MatAlgElem)
 
+   n = identity_matrix(m)
+
+   @test isa(n, MatAlgElem)
+
+   @test nrows(n) == degree(S)
+
    @test_throws ErrorConstrDimMismatch S([t t^2 ; t^3 t^4])
    @test_throws ErrorConstrDimMismatch S([t t^2 t^3 ; t^4 t^5 t^6 ; t^7 t^8 t^9 ; t t^2 t^3])
    @test_throws ErrorConstrDimMismatch S([t, t^2])
@@ -124,19 +130,6 @@ end
 
    @test x in keys(Dict(x => 1))
    @test !(y in keys(Dict(x => 1)))
-end
-
-@testset "Generic.MatAlg.size..." begin
-   S = MatrixAlgebra(QQ, 3)
-   A = S([1 2 3; 4 5 6; 7 8 9])
-
-   @test nrows(S) == ncols(S) == 3
-   @test degree(S) == 3
-
-   @test nrows(A) == ncols(A) == 3
-   @test degree(A) == 3
-
-   @test issquare(A)
 end
 
 @testset "Generic.MatAlg.manipulation..." begin
@@ -177,6 +170,17 @@ end
    @test !iszero_row(C, 1)
    @test iszero_column(C, 2)
    @test !iszero_column(C, 1)
+
+   S = MatrixAlgebra(QQ, 3)
+   A = S([1 2 3; 4 5 6; 7 8 9])
+
+   @test nrows(S) == ncols(S) == 3
+   @test degree(S) == 3
+
+   @test nrows(A) == ncols(A) == 3
+   @test degree(A) == 3
+
+   @test issquare(A)
 end
 
 @testset "Generic.MatAlg.unary_ops..." begin

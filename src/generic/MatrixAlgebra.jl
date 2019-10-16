@@ -133,6 +133,32 @@ zero(x::AbstractAlgebra.MatAlgElem, n::Int) = zero!(similar(x, n))
 
 ################################################################################
 #
+#  Copy and deepcopy
+#
+################################################################################
+
+function copy(d::MatAlgElem{T}) where T <: RingElement
+   z = _similar(d, base_ring(d), nrows(d), ncols(d))
+   for i = 1:nrows(d)
+      for j = 1:ncols(d)
+         z[i, j] = d[i, j]
+      end
+   end
+   return z
+end
+
+function deepcopy_internal(d::MatAlgElem{T}, dict::IdDict) where T <: RingElement
+   z = _similar(d, base_ring(d), nrows(d), ncols(d))
+   for i = 1:nrows(d)
+      for j = 1:ncols(d)
+         z[i, j] = deepcopy(d[i, j])
+      end
+   end
+   return z
+end
+
+################################################################################
+#
 #   Size
 #
 ################################################################################
@@ -267,11 +293,11 @@ function divexact_right(x::AbstractAlgebra.MatAlgElem{T}, y::T) where {T <: Ring
    return divexact(x, y)
 end
 
-function divexact_left(x::MatrixElem, y::Union{Integer, Rational, AbstractFloat})
+function divexact_left(x::MatAlgElem, y::Union{Integer, Rational, AbstractFloat})
    return divexact(x, y)
 end
 
-function divexact_right(x::MatrixElem, y::Union{Integer, Rational, AbstractFloat})
+function divexact_right(x::MatAlgElem, y::Union{Integer, Rational, AbstractFloat})
    return divexact(x, y)
 end
 
@@ -479,6 +505,34 @@ function addeq!(A::MatAlgElem{T}, B::MatAlgElem{T}) where T <: RingElement
       end
    end
    return A
+end
+
+###############################################################################
+#
+#   Identity matrix
+#
+###############################################################################
+
+function identity_matrix(M::MatAlgElem{T}, n::Int) where T <: RingElement
+   R = base_ring(M)
+   arr = Array{T}(undef, n, n)
+   for i in 1:n
+      for j in 1:n
+         arr[i, j] = i == j ? one(R) : zero(R)
+      end
+   end
+   z = MatAlgElem{T}(arr)
+   z.base_ring = R
+   return z
+end
+
+@doc Markdown.doc"""
+    identity_matrix(M::MatAlgElem{T}) where T <: RingElement
+> Return the identity matrix over the same base ring as $M$ and with the
+> same dimensions.
+"""
+function identity_matrix(M::MatAlgElem{T}) where T <: RingElement
+   return identity_matrix(M, nrows(M))
 end
 
 ###############################################################################

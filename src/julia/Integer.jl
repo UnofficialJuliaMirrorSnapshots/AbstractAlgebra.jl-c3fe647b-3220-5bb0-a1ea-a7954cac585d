@@ -36,10 +36,6 @@ zero(::Integers{T}) where T <: Integer = T(0)
 
 one(::Integers{T}) where T <: Integer = T(1)
 
-if VERSION < v"0.7.0-DEV.1144"
-isone(a::Integer) = a == 1
-end
-
 @doc Markdown.doc"""
    isunit(a::Integer)
 > Return `true` if $a$ is $1$ or $-1$.
@@ -216,6 +212,17 @@ function ppio(a::T, b::T) where T <: Integer
       g = gcd(c, n)
    end
    return c, n
+end
+
+###############################################################################
+#
+#   Primality test
+#
+###############################################################################
+
+function isprobable_prime(x::Integer, reps::Integer=25)
+   return ccall((:__gmpz_probab_prime_p, :libgmp), Cint,
+                (Ref{BigInt}, Cint), x, reps) != 0
 end
 
 ###############################################################################

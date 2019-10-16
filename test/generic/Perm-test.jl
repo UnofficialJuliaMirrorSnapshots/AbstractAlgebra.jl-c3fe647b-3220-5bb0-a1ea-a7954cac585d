@@ -11,6 +11,22 @@ end
    @test parent_type(Generic.Perm{T}) == Generic.PermGroup{T}
 
    @test PermutationGroup(T(10)) isa Generic.PermGroup{T}
+
+   @test Generic.PermGroup(T(10)) isa Generic.PermGroup{T}
+   @test Generic.PermGroup{T}(0xa) isa Generic.PermGroup{T}
+
+   if T <: Signed
+      @test_throws DomainError PermutationGroup(-rand(T(1):T(100)))
+      @test_throws DomainError Generic.PermGroup(-rand(T(1):T(100)))
+   end
+
+   G0 = PermutationGroup(zero(T))
+   @test G0 isa Generic.PermGroup{T}
+
+   p = Perm(T[])
+   @test p == G0()
+   @test parent(p) == G0
+
    G = PermutationGroup(T(10))
    @test elem_type(G) == Generic.Perm{T}
 
@@ -118,6 +134,8 @@ end
 
    @test string(Perm(T[1,2,3])) == "()"
    @test string(Perm(T[3,2,1])) == "(1,3)"
+
+   @test string(Perm(Int[])) == "()"
 end
 
 @testset "Perm.basic_manipulation ($T)..." for T in IntTypes

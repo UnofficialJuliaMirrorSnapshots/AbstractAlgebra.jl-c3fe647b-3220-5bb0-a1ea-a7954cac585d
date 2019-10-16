@@ -25,7 +25,7 @@ export MatrixSpace, fflu!, fflu, solve_triu, isrref, charpoly_danilevsky!,
 
 ###############################################################################
 #
-#   Similar and eye
+#   Similar
 #
 ###############################################################################
 
@@ -42,30 +42,6 @@ similar(x::AbstractAlgebra.MatElem, R::Ring, r::Int, c::Int) = _similar(x, R, r,
 similar(x::AbstractAlgebra.MatElem, R::Ring=base_ring(x)) = similar(x, R, nrows(x), ncols(x))
 
 similar(x::AbstractAlgebra.MatElem, r::Int, c::Int) = similar(x, base_ring(x), r, c)
-
-@doc Markdown.doc"""
-    eye(x::Generic.MatrixElem)
-> Return the identity matrix with the same shape as $x$.
-"""
-function eye(x::MatrixElem)
-  z = zero(x)
-  for i in 1:nrows(x)
-    z[i, i] = one(base_ring(x))
-  end
-  return z
-end
-
-@doc Markdown.doc"""
-    eye(x::Generic.MatrixElem, d::Int)
-> Return the $d$-by-$d$ identity matrix with the same base ring as $x$.
-"""
-function eye(x::MatrixElem, d::Int)
-   z = zero(x, d, d)
-   for i in 1:nrows(z)
-      z[i, i] = one(base_ring(x))
-   end
-   return z
-end
 
 ###############################################################################
 #
@@ -196,6 +172,8 @@ Base.@propagate_inbounds function setindex!(a::MatrixElem, d::T, r::Int,
     a.entries[r, c] = base_ring(a)(d)
 end
 
+Base.eltype(::Type{<:MatrixElem{T}}) where {T} = T
+
 Base.isassigned(a::Union{Mat,MatAlgElem}, i, j) = isassigned(a.entries, i, j)
 
 function Base.isassigned(a::MatrixElem, i, j)
@@ -300,24 +278,30 @@ function iszero_column(M::MatrixElem{T}, i::Int) where T <: RingElement
   return true
 end
 
-function copy(d::MatrixElem)
-   c = similar(d)
+################################################################################
+#
+#  Copy and deepcopy
+#
+################################################################################
+
+function copy(d::MatSpaceElem{T}) where T <: RingElement
+   z = _similar(d, base_ring(d), nrows(d), ncols(d))
    for i = 1:nrows(d)
       for j = 1:ncols(d)
-         c[i, j] = d[i, j]
+         z[i, j] = d[i, j]
       end
    end
-   return c
+   return z
 end
 
-function deepcopy_internal(d::MatrixElem, dict::IdDict)
-   c = similar(d)
+function deepcopy_internal(d::MatSpaceElem{T}, dict::IdDict) where T <: RingElement
+   z = _similar(d, base_ring(d), nrows(d), ncols(d))
    for i = 1:nrows(d)
       for j = 1:ncols(d)
-         c[i, j] = deepcopy(d[i, j])
+         z[i, j] = deepcopy(d[i, j])
       end
    end
-   return c
+   return z
 end
 
 function deepcopy_internal(d::MatSpaceView{T}, dict::IdDict) where T <: RingElement
@@ -726,7 +710,7 @@ function ^(a::MatrixElem, b::Int)
    end
    # special case powers of x for constructing polynomials efficiently
    if b == 0
-      return eye(a)
+      return identity_matrix(a)
    elseif b == 1
       return deepcopy(a)
    else
@@ -755,7 +739,7 @@ function powers(a::MatrixElem, d::Int)
    !issquare(a) && error("Dimensions do not match in powers")
    d <= 0 && throw(DomainError(d, "Negative dimension in powers"))
    A = Array{typeof(a)}(undef, d + 1)
-   A[1] = eye(a)
+   A[1] = identity_matrix(a)
    if d > 1
       c = a
       A[2] = a
@@ -2322,7 +2306,7 @@ end
 """
 function pseudo_inv(M::MatrixElem{T}) where {T <: RingElement}
    issquare(M) || throw(DomainError(M, "Can not invert non-square Matrix"))
-   X, d = solve_fflu(M, eye(M))
+   X, d = solve_fflu(M, identity_matrix(M))
    return X, d
 end
 
@@ -2334,7 +2318,7 @@ end
 """
 function inv(M::MatrixElem{T}) where {T <: FieldElement}
    issquare(M) || throw(DomainError(M, "Can not invert non-square Matrix"))
-   A = solve_lu(M, eye(M))
+   A = solve_lu(M, identity_matrix(M))
    return A
 end
 
@@ -3145,7 +3129,7 @@ end
 function hnf_cohen_with_transform(A::MatrixElem{T}) where {T <: RingElement}
    H = deepcopy(A)
    m = nrows(H)
-   U = eye(A, m)
+   U = identity_matrix(A, m)
    hnf_cohen!(H, U)
    return H, U
 end
@@ -3510,7 +3494,7 @@ function _hnf_kb(A, trafo::Type{Val{T}} = Val{false}) where T
    H = deepcopy(A)
    m = nrows(H)
    if trafo == Val{true}
-      U = eye(A, m)
+      U = identity_matrix(A, m)
       hnf_kb!(H, U, true)
       return H, U
    else
@@ -3790,8 +3774,8 @@ function _snf_kb(A::MatrixElem{T}, trafo::Type{Val{V}} = Val{false}) where {V, T
    m = nrows(S)
    n = ncols(S)
    if trafo == Val{true}
-      U = eye(A, m)
-      K = eye(A, n)
+      U = identity_matrix(A, m)
+      K = identity_matrix(A, n)
       snf_kb!(S, U, K, true)
       return S, U, K
    else
@@ -3941,7 +3925,7 @@ function _weak_popov(A::Mat{T}, trafo::Type{Val{S}} = Val{false}) where {T <: Po
    m = nrows(P)
    W = similar(A, 0, 0)
    if trafo == Val{true}
-      U = eye(A, m)
+      U = identity_matrix(A, m)
       weak_popov!(P, W, U, false, true)
       return P, U
    else
@@ -3978,7 +3962,7 @@ function _extended_weak_popov(A::Mat{T}, V::Mat{T}, trafo::Type{Val{S}} = Val{fa
    W = deepcopy(V)
    m = nrows(P)
    if trafo == Val{true}
-      U = eye(A)
+      U = identity_matrix(A)
       weak_popov!(P, W, U, true, true)
       return P, W, U
    else
@@ -4205,7 +4189,7 @@ function _popov(A::Mat{T}, trafo::Type{Val{S}} = Val{false}) where {T <: PolyEle
    P = deepcopy(A)
    m = nrows(P)
    if trafo == Val{true}
-      U = eye(A, m)
+      U = identity_matrix(A, m)
       popov!(P, U, true)
       return P, U
    else
@@ -4313,7 +4297,7 @@ function _hnf_via_popov(A::Mat{T}, trafo::Type{Val{S}} = Val{false}) where {T <:
    H = deepcopy(A)
    m = nrows(H)
    if trafo == Val{true}
-      U = eye(A, m)
+      U = identity_matrix(A, m)
       hnf_via_popov!(H, U, true)
       return H, U
    else
@@ -4891,6 +4875,76 @@ end
 
 ###############################################################################
 #
+#   Change Base Ring
+#
+###############################################################################
+
+@doc Markdown.doc"""
+    change_base_ring(R::Ring, M::MatrixElem)
+
+> Return the matrix obtained by coercing each entry into `R`.
+"""
+function change_base_ring(R::Ring, M::MatrixElem)
+   N = similar(M, R)
+   for i=1:nrows(M), j=1:ncols(M)
+      N[i,j] = R(M[i,j])
+   end
+   return N
+end
+
+###############################################################################
+#
+#   Map
+#
+###############################################################################
+
+@doc Markdown.doc"""
+    map_entries!(f, dst::MatrixElem, src::MatrixElem)
+
+> Like `map_entries`, but stores the result in `dst` rather than a new matrix.
+"""
+function map_entries!(f, dst::MatrixElem, src::MatrixElem)
+   for i = 1:nrows(src), j = 1:ncols(src)
+      dst[i, j] = f(src[i, j])
+   end
+   dst
+end
+
+@doc Markdown.doc"""
+    map!(f, dst::MatrixElem, src::MatrixElem)
+
+> Like `map`, but stores the result in `dst` rather than a new matrix.
+> This is equivalent to `map_entries!(f, dst, src)`.
+"""
+Base.map!(f, dst::MatrixElem, src::MatrixElem) = map_entries!(f, dst, src)
+
+@doc Markdown.doc"""
+    map_entries(f, a::MatrixElem)
+
+> Transform matrix `a` by applying `f` on each element.
+"""
+function map_entries(f, a::MatrixElem)
+   isempty(a) && return similar(a, parent(f(zero(base_ring(a)))))
+   b11 = f(a[1, 1])
+   b = similar(a, parent(b11))
+   b[1, 1] = b11
+   for i = 1:nrows(a), j = 1:ncols(a)
+      i == j == 1 && continue
+      b[i, j] = f(a[i, j])
+   end
+   b
+end
+
+@doc Markdown.doc"""
+    map(f, a::MatrixElem)
+
+> Transform matrix `a` by applying `f` on each element.
+This is equivalent to `map_entries(f, a)`.
+"""
+Base.map(f, a::MatrixElem) = map_entries(f, a)
+
+###############################################################################
+#
 #   Random generation
 #
 ###############################################################################
@@ -5135,6 +5189,32 @@ function identity_matrix(R::Ring, n::Int)
    return z
 end
 
+@doc Markdown.doc"""
+    identity_matrix(R::Ring, m::Int, n::Int)
+> Return the $m \times n$ matrix over $R$ with ones down the diagonal and
+> zeroes elsewhere.
+"""
+function identity_matrix(R::Ring, m::Int, n::Int)
+   z = zero_matrix(R, m, n)
+   for i in 1:min(m, n)
+      z[i, i] = one(R)
+   end
+   return z
+end
+
+@doc Markdown.doc"""
+    identity_matrix(M::MatElem{T}) where T <: RingElement
+> Return the matrix over the same base ring as $M$ and with the same
+> dimensions with ones down the diagonal and zeroes elsewhere.
+"""
+function identity_matrix(M::MatElem{T}) where T <: RingElement
+   return identity_matrix(base_ring(M), nrows(M), ncols(M))
+end
+
+function identity_matrix(M::MatElem{T}, n::Int) where T <: RingElement
+   return identity_matrix(base_ring(M), n, n)
+end
+
 ###############################################################################
 #
 #   MatrixSpace constructor
@@ -5152,55 +5232,3 @@ function MatrixSpace(R::AbstractAlgebra.Ring, r::Int, c::Int, cached::Bool = tru
    T = elem_type(R)
    return MatSpace{T}(R, r, c, cached)
 end
-
-###############################################################################
-#
-#   change_base_ring, map_entries, map_entries!, Base.map! and Base.map
-#
-###############################################################################
-
-@doc Markdown.doc"""
-    change_base_ring(R::Ring, M::MatrixElem)
-
-> Return the matrix obtained by coercing each entry into `R`.
-"""
-function change_base_ring(R::Ring, M::MatrixElem)
-   N = similar(M, R)
-   for i=1:nrows(M), j=1:ncols(M)
-      N[i,j] = R(M[i,j])
-   end
-   return N
-end
-
-@doc Markdown.doc"""
-    map_entries!(f, dst::MatrixElem, src::MatrixElem)
-
-> Like `map`, but stores the result in `dst` rather than a new matrix.
-"""
-function map_entries!(f, dst::MatrixElem, src::MatrixElem)
-   for i = 1:nrows(src), j = 1:ncols(src)
-      dst[i, j] = f(src[i, j])
-   end
-   dst
-end
-
-Base.map!(f, dst::MatrixElem, src::MatrixElem) = map_entries!(f, dst, src)
-
-@doc Markdown.doc"""
-    map_entries(f, a::MatrixElem)
-
-> Transform matrix `a` by applying `f` on each element.
-"""
-function map_entries(f, a::MatrixElem)
-   isempty(a) && return similar(a, parent(f(zero(base_ring(a)))))
-   b11 = f(a[1, 1])
-   b = similar(a, parent(b11))
-   b[1, 1] = b11
-   for i = 1:nrows(a), j = 1:ncols(a)
-      i == j == 1 && continue
-      b[i, j] = f(a[i, j])
-   end
-   b
-end
-
-Base.map(f, a::MatrixElem) = map_entries(f, a)

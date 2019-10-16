@@ -583,10 +583,8 @@ function module_isomorphism(M1::AbstractAlgebra.Module, M2::AbstractAlgebra.Modu
    Generic.ModuleIsomorphism(M1, M2, m)
 end
 
-#add empty functions so that Singular, Nemo and Hecke can import and extend.
-function crt(A...)
-  return AbstractAlgebra.crt(A...)
-end
+# add empty functions so that Singular, Nemo and Hecke can import and extend.
+function crt end
 
 export PowerSeriesRing, PolynomialRing, SparsePolynomialRing, MatrixSpace,
        MatrixAlgebra, FractionField, ResidueRing, Partition, PermGroup,
@@ -604,17 +602,10 @@ export Generic
 #
 ###############################################################################
 
-getindex(R::Ring, s::String) = PolynomialRing(R, s)
+getindex(R::NCRing, s::Union{String, Char}) = PolynomialRing(R, s)
 
-getindex(R::Ring, s::Char) = PolynomialRing(R, s)
-
-getindex(R::NCRing, s::String) = PolynomialRing(R, s)
-
-getindex(R::NCRing, s::Char) = PolynomialRing(R, s)
-
-getindex(R::Tuple{Ring, T}, s::String) where {T} = PolynomialRing(R[1], s)
-
-getindex(R::Tuple{Ring, T}, s::Char) where {T} = PolynomialRing(R[1], s)
+# syntax x = R["x"]["y"]
+getindex(R::Tuple{Union{Ring, NCRing}, Union{PolyElem, NCPolyElem}}, s::Union{String, Char}) = PolynomialRing(R[1], s)
 
 ###############################################################################
 #
@@ -721,8 +712,6 @@ end
 #
 ###############################################################################
 
-if VERSION >= v"0.5.0-dev+3171"
-
 function sig_exists(T::Type{Tuple{U, V, W}}, sig_table::Array{X, 1}) where {U, V, W, X}
    for s in sig_table
       if s === T
@@ -731,14 +720,6 @@ function sig_exists(T::Type{Tuple{U, V, W}}, sig_table::Array{X, 1}) where {U, V
    end
    return false
 end
-
-else
-
-function sig_exists(T::Type{Tuple{U, V, W}}, sig_table::Array{X, 1}) where {U, V, W, X}
-   return false
-end
-
-end # if VERSION
 
 ###############################################################################
 #
@@ -763,7 +744,7 @@ end
 #
 ###############################################################################
 
-PermutationGroup = PermGroup
+const PermutationGroup = PermGroup
 
 ###############################################################################
 #
@@ -771,8 +752,8 @@ PermutationGroup = PermGroup
 #
 ###############################################################################
 
-ZZ = JuliaZZ
-QQ = JuliaQQ
+const ZZ = JuliaZZ
+const QQ = JuliaQQ
 
 ###############################################################################
 #
@@ -780,7 +761,7 @@ QQ = JuliaQQ
 #
 ###############################################################################
 
-RealField = JuliaRealField
+const RealField = JuliaRealField
 
 ###############################################################################
 #
