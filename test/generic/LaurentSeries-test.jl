@@ -147,6 +147,14 @@ end
    @test coeff(a, 1) == 2
    @test coeff(b, 7) == 0
 
+   @test_throws DomainError polcoeff(a, -1)
+   @test_throws DomainError polcoeff(a, -rand(2:100))
+
+   @test_throws DomainError upscale(a, 0)
+   @test_throws DomainError upscale(a, -rand(1:100))
+   @test_throws DomainError downscale(a, 0)
+   @test_throws DomainError downscale(a, -rand(1:100))
+   
    T = ResidueRing(ZZ, 7)
    U, y = LaurentSeriesRing(T, 10, "y")
 
@@ -230,6 +238,16 @@ end
       @test f*(g + h) == f*g + f*h
       @test f*(g - h) == f*g - f*h
    end
+
+   # Regression test for bug #484
+   R, x = LaurentSeriesRing(QQ, 20,"x")
+   a = sum(n*x^n for n in 1:17)
+   b = 83 + 43*x^10 + O(x^20)
+   c = a + b
+   ccp = deepcopy(c)
+   addeq!(a, b)
+   @test c - a == 0
+   @test c - ccp == 0
 end
 
 @testset "Generic.LaurentSeries.inplace_binary_ops..." begin

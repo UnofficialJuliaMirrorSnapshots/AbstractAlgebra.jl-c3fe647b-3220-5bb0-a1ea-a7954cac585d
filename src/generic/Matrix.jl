@@ -101,13 +101,18 @@ function _check_dim(r::Int, c::Int, arr::AbstractArray{T, 1}) where {T}
   return nothing
 end
 
-function _checkbounds(i::Int, j::Int)
-   j >= 1 && j <= i
-end
+_checkbounds(i::Int, j::Int) = 1 <= j <= i
 
 function _checkbounds(A, i::Int, j::Int)
   (_checkbounds(nrows(A), i) && _checkbounds(ncols(A), j)) ||
             Base.throw_boundserror(A, (i, j))
+end
+
+function _checkbounds(A, rows::UnitRange{Int}, cols::UnitRange{Int})
+   isempty(rows) || _checkbounds(nrows(A), first(rows)) && _checkbounds(nrows(A), last(rows)) ||
+      throw(BoundsError(A, rows))
+   isempty(cols) || _checkbounds(ncols(A), first(cols)) && _checkbounds(ncols(A), last(cols)) ||
+      throw(BoundsError(A, cols))
 end
 
 ###############################################################################
@@ -323,8 +328,7 @@ canonical_unit(a::MatrixElem) = canonical_unit(a[1, 1])
 ###############################################################################
 
 function sub(M::AbstractAlgebra.MatElem, rows::UnitRange{Int}, cols::UnitRange{Int})
-  Generic._checkbounds(M, rows.start, cols.start)
-  Generic._checkbounds(M, rows.stop, cols.stop)
+  _checkbounds(M, rows, cols)
   z = similar(M, length(rows), length(cols))
   startr = first(rows)
   startc = first(cols)
@@ -393,15 +397,51 @@ function Base.view(M::AbstractAlgebra.MatElem{T}, rows::Colon, cols::Colon) wher
    return view(M, 1:nrows(M), 1:ncols(M))
 end
 
+###############################################################################
+#
+#   Block replacement
+#
+###############################################################################
+
+function setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, r::UnitRange{Int}, c::UnitRange{Int}) where T
+    _checkbounds(a, r, c)
+    size(b) == (length(r), length(c)) || throw(DimensionMismatch("tried to assign a $(nrows(b))x$(ncols(b)) matrix to a $(length(r))x$(length(c)) destination"))
+    startr = first(r)
+    startc = first(c)
+    for i in r
+        for j in c
+            a[i, j] = b[i - startr + 1, j - startc + 1]
+        end
+    end
+end
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, r::UnitRange{Int}, ::Colon) where T = setindex!(a, b, r, 1:ncols(a))
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, ::Colon, c::UnitRange{Int}) where T = setindex!(a, b, 1:nrows(a), c)
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, ::Colon, ::Colon) where T = setindex!(a, b, 1:nrows(a), 1:ncols(a))
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, r::Int, c::UnitRange{Int}) where T = setindex!(a, b, r:r, c)
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, r::UnitRange{Int}, c::Int) where T = setindex!(a, b, r, c:c)
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, r::Int, ::Colon) where T = setindex!(a, b, r:r, 1:ncols(a))
+
+setindex!(a::AbstractAlgebra.MatElem{T}, b::AbstractAlgebra.MatElem{T}, ::Colon, c::Int) where T = setindex!(a, b, 1:nrows(a), c:c)
+
 ################################################################################
 #
-#   Size
+#   Size, axes and issquare
 #
 ################################################################################
 
-size(x::MatElem) = tuple(nrows(x), ncols(x))
+size(x::MatrixElem) = (nrows(x), ncols(x))
 
-size(t::MatElem, d) = d <= 2 ? size(t)[d] : 1
+size(t::MatrixElem, d::Integer) = d <= 2 ? size(t)[d] : 1
+
+axes(t::MatrixElem) = Base.OneTo.(size(t))
+
+axes(t::MatrixElem, d::Integer) = Base.OneTo(size(t, d))
 
 issquare(a::MatElem) = (nrows(a) == ncols(a))
 
