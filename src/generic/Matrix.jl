@@ -115,6 +115,18 @@ function _checkbounds(A, rows::UnitRange{Int}, cols::UnitRange{Int})
       throw(BoundsError(A, cols))
 end
 
+function check_square(A::MatrixElem)
+   issquare(A) || throw(DomainError(A, "matrix must be square"))
+   A
+end
+
+function check_square(S::AbstractAlgebra.MatSpace)
+   nrows(S) == ncols(S) || throw(DomainError(S, "matrices must be square"))
+   S
+end
+
+check_square(S::AbstractAlgebra.MatAlgebra) = S
+
 ###############################################################################
 #
 #   Basic manipulation
@@ -215,9 +227,16 @@ end
 @doc Markdown.doc"""
     one(a::AbstractAlgebra.MatSpace)
 > Construct the matrix in the given matrix space with ones down the diagonal
-> and zeroes elsewhere.
+> and zeroes elsewhere. The matrix space must contain square matrices.
 """
-one(a::AbstractAlgebra.MatSpace) = a(1)
+one(a::AbstractAlgebra.MatSpace) = check_square(a)(1)
+
+@doc Markdown.doc"""
+    one(a::AbstractAlgebra.MatSpace)
+> Construct the identity matrix in the same matrix space as `a`, i.e.
+> with ones down the diagonal and zeroes elsewhere. `a` must be square.
+"""
+one(a::MatElem) = identity_matrix(check_square(a))
 
 @doc Markdown.doc"""
     iszero(a::Generic.MatrixElem)
@@ -769,26 +788,6 @@ function ^(a::MatrixElem, b::Int)
       end
       return z
    end
-end
-
-@doc Markdown.doc"""
-    powers(a::Generic.MatrixElem, d::Int)
-> Return an array of matrices $M$ wher $M[i + 1] = a^i$ for $i = 0..d$
-"""
-function powers(a::MatrixElem, d::Int)
-   !issquare(a) && error("Dimensions do not match in powers")
-   d <= 0 && throw(DomainError(d, "Negative dimension in powers"))
-   A = Array{typeof(a)}(undef, d + 1)
-   A[1] = identity_matrix(a)
-   if d > 1
-      c = a
-      A[2] = a
-      for i = 2:d
-         c *= a
-         A[i + 1] = c
-      end
-   end
-   return A
 end
 
 ###############################################################################
@@ -4797,6 +4796,8 @@ function Base.vcat(A::MatrixElem...)
   return _vcat(A)
 end
 
+Base.reduce(::typeof(vcat), A::AbstractVector{<:MatrixElem}) = _vcat(A)
+
 function _vcat(A)
   if length(A) == 0
     error("Number of matrices to concatenate must be positive")
@@ -4831,6 +4832,8 @@ end
 function Base.hcat(A::MatrixElem...)
   return _hcat(A)
 end
+
+Base.reduce(::typeof(hcat), A::AbstractVector{<:MatrixElem}) = _hcat(A)
 
 function _hcat(A)
   if length(A) == 0
@@ -4999,6 +5002,8 @@ function rand(rng::AbstractRNG, S::AbstractAlgebra.MatSpace, v...)
    end
    return M
 end
+
+rand(S::AbstractAlgebra.MatSpace, v...) = rand(Random.GLOBAL_RNG, S, v...)
 
 function randmat_triu(rng::AbstractRNG, S::AbstractAlgebra.MatSpace, v...)
    M = S()

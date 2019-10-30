@@ -130,6 +130,34 @@ Base.size(a::MyTestMatrix{T}) where T = a.dim, a.dim
    @test_throws ErrorConstrDimMismatch S([t, t^2])
    @test_throws ErrorConstrDimMismatch S([t, t^2, t^3, t^4, t^5, t^6, t^7, t^8, t^9, t^10])
 
+   # test literal construction
+   for T = (R, ZZ)
+      m = T[1 2]
+      @test m isa MatElem{elem_type(T)}
+      @test size(m) == (1, 2)
+      @test m[1, 1] == T(1)
+      @test m[1, 2] == T(2)
+
+      m = T[1; 2; 3]
+      @test m isa MatElem{elem_type(T)}
+      @test size(m) == (3, 1)
+      @test m[1, 1] == T(1)
+      @test m[2, 1] == T(2)
+      @test m[3, 1] == T(3)
+
+      m = T[1 2; 3 4; 5 6]
+      @test m isa MatElem{elem_type(T)}
+      @test size(m) == (3, 2)
+      @test m[1, 1] == T(1)
+      @test m[1, 2] == T(2)
+      @test m[2, 1] == T(3)
+      @test m[2, 2] == T(4)
+      @test m[3, 1] == T(5)
+      @test m[3, 2] == T(6)
+
+      @test_throws ArgumentError T[1; 2 3]
+   end
+
    arr = [1 2; 3 4]
    arr2 = [1, 2, 3, 4, 5, 6]
 
@@ -267,6 +295,9 @@ end
    @test iszero(zero(S))
    @test isone(one(S))
 
+   @test zero(A) == zero(S)
+   @test one(A) == one(S)
+
    B[1, 1] = R(3)
    @test B[1, 1] == R(3)
 
@@ -349,7 +380,10 @@ end
       @test !iszero(m45)
       @test m45 isa Generic.MatSpaceElem
       @test parent(m45) == M45
+      @test_throws DomainError one(m45)
    end
+
+   @test_throws DomainError one(M45)
 
    let m = matrix(ZZ, 2, 3, 1:6)
       @test typeof(m[1, 1]) == BigInt # not in AbstractAlgebra's hierarchy
@@ -2006,6 +2040,7 @@ end
                                   0 1 0;
                                   0 1 2;])
    @test hcat(B, C) == [B C]
+   @test hcat(B, C, C, B) == reduce(hcat, [B, C, C, B])
    let BC = hcat([B, C])
       @test size(BC) == (2, 1)
       @test BC[1] == B
@@ -2020,12 +2055,12 @@ end
                                   0 1;])
 
    @test vcat(A, B) == [A; B]
+   @test vcat(A, B, B, A) == reduce(vcat, [A, B, B, A])
    let AB = vcat([A, B])
       @test size(AB) == (2,)
       @test AB[1] == A
       @test AB[2] == B
    end
-
 
    @test [A D; B B C] == matrix(R, [1 2 1 2 3;
                                     3 4 4 5 6;
